@@ -2,12 +2,12 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend",
-    "version": "1.0.0",
+    "version": "1.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.progress",
-      "versionCode": 1
+      "versionCode": 3
     },
     "plugins": []
   }
