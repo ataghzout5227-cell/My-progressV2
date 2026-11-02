@@ -2,8 +2,6 @@ name: Build Ascend APK
 on:
   push:
     branches: [main]
-    paths-ignore:
-      - 'BUILD_STATUS.md'
   workflow_dispatch:
 permissions:
   contents: read
@@ -24,15 +22,30 @@ jobs:
           distribution: temurin
           java-version: '17'
       - uses: android-actions/setup-android@v3
+      - name: Detect source folder
+        id: source
+        shell: bash
+        run: |
+          if [ -f package.json ]; then
+            echo "dir=." >> "$GITHUB_OUTPUT"
+          elif [ -f my-progress-tracker/package.json ]; then
+            echo "dir=my-progress-tracker" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Missing application source. Upload extracted Ascend source files to this repository."
+            exit 1
+          fi
       - name: Install dependencies
+        working-directory: ${{ steps.source.outputs.dir }}
         run: pnpm install --frozen-lockfile
-      - name: Generate native Android project
+      - name: Generate Android project
+        working-directory: ${{ steps.source.outputs.dir }}
         run: pnpm exec expo prebuild --platform android --clean --no-install
-      - name: Build Android debug APK
-        run: cd android && chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-      - name: Upload installable APK
+      - name: Build installable APK
+        working-directory: ${{ steps.source.outputs.dir }}/android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: Ascend-APK
-          path: android/app/build/outputs/apk/debug/*.apk
+          path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
