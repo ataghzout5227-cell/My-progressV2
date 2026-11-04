@@ -2,22 +2,22 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend",
-    "version": "2.2.0",
+    "version": "2.3.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.progress",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
-        "backgroundColor": "#071321"
+        "backgroundColor": "#151715"
       }
     },
     "plugins": [],
     "icon": "./assets/ascend-icon.png",
     "splash": {
       "image": "./assets/ascend-icon.png",
-      "backgroundColor": "#071321",
+      "backgroundColor": "#151715",
       "resizeMode": "contain"
     }
   }
