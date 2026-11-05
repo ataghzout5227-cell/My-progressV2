@@ -1,75 +1,96 @@
-import React, {memo} from 'react';
+import React, {memo, useMemo} from 'react';
 import {StyleSheet, View} from 'react-native';
 import Svg, {Defs, LinearGradient, Stop, Rect, Path} from 'react-native-svg';
+import {normalizeAppearance} from './AppearanceSettings';
 
-// Continuous full-screen electric artwork, based on the approved Ascend Figma direction.
-// All paths are generated deterministically once; no network calls or animated redraws.
-let seed=310719;
-const random=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
-const filaments=[];
-function lightning(x,y,vx,vy,steps,width,depth){
-  let a=x,b=y,points=['M'+x.toFixed(1)+' '+y.toFixed(1)];
-  for(let i=0;i<steps;i++){
-    a+=vx+(random()-.5)*17;b+=vy+(random()-.5)*14;
-    points.push('L'+a.toFixed(1)+' '+b.toFixed(1));
-    if(depth>0&&i>1&&random()<.21){
-      const direction=random()<.5?-1:1;
-      lightning(a,b,vx*.7+direction*(4+random()*9),vy*.7+(random()-.5)*8,
-        Math.max(3,Math.floor(steps*.34)),width*.50,depth-1);
-    }
-  }
-  filaments.push({d:points.join(' '),width});
+// Deterministic vector artwork: distinct branching, sharp, flowing and minimal styles.
+function createPaths(style){
+ let seed=style==='storm'?310719:style==='strike'?913:style==='plasma'?457:812;
+ const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
+ const parts=[];
+ function bolt(x,y,dx,dy,steps,width,depth,curve=false){
+   let path='M'+x.toFixed(1)+' '+y.toFixed(1);
+   let a=x,b=y;
+   for(let n=0;n<steps;n++){
+     a+=dx+(rand()-.5)*(curve?5:style==='strike'?24:16);
+     b+=dy+(rand()-.5)*(curve?6:style==='strike'?18:13);
+     if(curve)path+=' Q'+(a-11).toFixed(1)+' '+(b-11).toFixed(1)+' '+a.toFixed(1)+' '+b.toFixed(1);
+     else path+=' L'+a.toFixed(1)+' '+b.toFixed(1);
+     if(depth>0&&n>1&&rand()<(style==='storm'?.23:.09)){
+       bolt(a,b,dx*.68+(rand()-.5)*19,dy*.75+(rand()-.5)*12,
+         Math.max(3,Math.floor(steps*.33)),width*.50,depth-1,curve);
+     }
+   }
+   parts.push({path,width});
+ }
+ if(style==='storm'){
+   bolt(-30,5,13,10,59,4.6,3);
+   bolt(415,-30,-13,11,60,4.3,3);
+   bolt(-25,375,12,8,45,3.4,3);
+   bolt(418,441,-14,7,46,3.5,3);
+   bolt(35,878,10,-10,34,3.5,2);
+   bolt(360,873,-10,-11,34,3.4,2);
+ }else if(style==='strike'){
+   bolt(35,-40,10,16,54,4.7,2);
+   bolt(380,-10,-11,18,52,4.4,2);
+   bolt(-40,330,13,12,46,4,2);
+   bolt(420,350,-13,13,45,4,2);
+ }else if(style==='plasma'){
+   for(let i=0;i<9;i++)bolt(-20+i*53,-40+(i%2)*32,(i%2? -1:1)*5,9,95,2.2,0,true);
+   for(let i=0;i<5;i++)bolt(400-i*55,880,(i%2?1:-1)*4,-9,95,1.9,0,true);
+ }else{
+   bolt(5,10,8,10,75,1.6,0);
+   bolt(390,0,-8,10,74,1.4,0);
+   bolt(0,830,8,-10,68,1.25,0);
+   bolt(390,830,-8,-10,68,1.25,0);
+ }
+ if(style!=='minimal')for(let i=0;i<(style==='storm'?10:style==='strike'?5:8);i++){
+   bolt(rand()*420-15,rand()*830,(rand()-.5)*8,6+rand()*7,5+Math.floor(rand()*12),.7,0,style==='plasma');
+ }
+ const buckets=new Map();
+ parts.forEach(item=>{
+   const width=Math.max(.25,Math.round(item.width*2)/2);
+   if(!buckets.has(width))buckets.set(width,[]);
+   buckets.get(width).push(item.path);
+ });
+ return Array.from(buckets,([width,group])=>({width,d:group.join(' ')}));
 }
-lightning(-25,14,13,10,58,4.6,3);
-lightning(415,-35,-13,11,60,4.3,3);
-lightning(-32,365,12,8,44,3.5,3);
-lightning(416,438,-14,7,45,3.7,3);
-lightning(45,876,10,-10,34,3.6,2);
-lightning(365,878,-10,-11,33,3.4,2);
-for(let i=0;i<15;i++)
-  lightning(random()*420-15,random()*815,(random()-.5)*10,5+random()*7,
-    5+Math.floor(random()*11),.65,1);
-
-const palette=[
-  {color:'#51FF00',scale:16/4.4,opacity:.055},
-  {color:'#70FF1E',scale:7/4.4,opacity:.14},
-  {color:'#9BFF52',scale:2.8/4.4,opacity:.55},
-  {color:'#E0FFC5',scale:.85/4.4,opacity:.86},
+const ARTWORK={
+ storm:createPaths('storm'),strike:createPaths('strike'),
+ plasma:createPaths('plasma'),minimal:createPaths('minimal')
+};
+const layers=[
+ {scale:3.6,opacity:.055},
+ {scale:1.65,opacity:.17},
+ {scale:.63,opacity:.49},
+ {scale:.22,opacity:.85}
 ];
-// Batch hundreds of filament segments into a few vector paths for smooth Android scrolling.
-const buckets=new Map();
-for(const item of filaments){
-  const thickness=Math.max(.25,Math.round(item.width*2)/2);
-  if(!buckets.has(thickness))buckets.set(thickness,[]);
-  buckets.get(thickness).push(item.d);
-}
-const rendered=palette.flatMap((layer,i)=>
-  Array.from(buckets.entries()).map(([thickness,paths],j)=>
-    <Path key={i+'-'+j} d={paths.join(' ')} fill="none"
-      stroke={layer.color} strokeWidth={Math.max(.12,thickness*layer.scale)}
-      strokeLinecap="round" strokeLinejoin="round"
-      opacity={layer.opacity*(thickness<1?.28:1)}/>
-  )
-);
-function ElectricBackground({tab='Home',settings=false}){
-  const opacity=settings?.42:
-    tab==='Home'?.86:tab==='Achievements'?.79:
-    tab==='Running'?.59:tab==='Workout'?.64:
-    tab==='Journal'?.38:.52;
-  return <View pointerEvents="none" style={[StyleSheet.absoluteFillObject,{opacity}]}>
-    <Svg width="100%" height="100%" viewBox="0 0 390 844"
-      preserveAspectRatio="xMidYMid slice">
-      <Defs>
-        <LinearGradient id="ambient" x1="0%" y1="0%" x2="100%" y2="100%">
-          <Stop offset="0%" stopColor="#17260F"/>
-          <Stop offset="45%" stopColor="#0C110A"/>
-          <Stop offset="100%" stopColor="#111A0F"/>
-        </LinearGradient>
-      </Defs>
-      <Rect width="390" height="844" fill="url(#ambient)"/>
-      {rendered}
-      <Rect width="390" height="844" fill="#090E08" opacity=".17"/>
-    </Svg>
-  </View>;
+function ElectricBackground({tab='Home',settings=false,appearance}){
+ const config=normalizeAppearance(appearance);
+ const isMinimal=config.style==='minimal';
+ const activityOpacity=settings?.62:
+   tab==='Home'?1:tab==='Achievements'?.92:
+   tab==='Running'?.72:tab==='Workout'?.75:tab==='Journal'?.53:.72;
+ const intensity=config.intensity/100;
+ const opacity=activityOpacity*intensity;
+ const artwork=ARTWORK[config.style]||ARTWORK.storm;
+ const shapes=useMemo(()=>layers.flatMap((layer,i)=>artwork.map((item,j)=>
+   <Path key={i+'-'+j} d={item.d} fill="none"
+     stroke={i===3?'#F8FFF1':config.lightningColor}
+     strokeWidth={Math.max(.1,item.width*layer.scale*(isMinimal?.62:1))}
+     strokeLinecap="round" strokeLinejoin="round"
+     opacity={layer.opacity*(item.width<1?.35:1)}/>
+ )),[config.style,config.lightningColor]);
+ return <View pointerEvents="none" style={[StyleSheet.absoluteFillObject,{opacity:Math.min(1,opacity)}]}>
+   <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
+     <Defs><LinearGradient id="ambient" x1="0%" y1="0%" x2="100%" y2="100%">
+       <Stop offset="0%" stopColor="#0A110C"/>
+       <Stop offset="45%" stopColor="#0C100D"/>
+       <Stop offset="100%" stopColor="#151A14"/>
+     </LinearGradient></Defs>
+     <Rect width="390" height="844" fill="url(#ambient)"/>
+     {shapes}
+   </Svg>
+ </View>;
 }
 export default memo(ElectricBackground);
