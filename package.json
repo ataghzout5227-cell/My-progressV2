@@ -16,6 +16,8 @@
     "expo-linear-gradient": "~15.0.8",
     "@supabase/supabase-js": "^2.76.1",
     "react-native-url-polyfill": "^2.0.0",
-    "expo-secure-store": "~15.0.8"
+    "expo-secure-store": "~15.0.8",
+    "react-native-svg": "15.12.1",
+    "lucide-react-native": "^0.468.0"
   }
 }
