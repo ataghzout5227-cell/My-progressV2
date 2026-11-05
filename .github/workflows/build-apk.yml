@@ -4,7 +4,7 @@ on:
     branches: [main]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   apk:
     runs-on: ubuntu-latest
@@ -45,9 +45,33 @@ jobs:
           NODE_ENV: production
         working-directory: ${{ steps.source.outputs.dir }}/android
         run: chmod +x gradlew && ./gradlew assembleRelease --no-daemon
+      - name: Validate APK before publishing
+        working-directory: ${{ steps.source.outputs.dir }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          unzip -t "$APK" | tail -n 2
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
+          cp "$APK" "Ascend-Electric-2.5.apk"
+      - name: Publish direct APK on GitHub Releases
+        if: github.ref == 'refs/heads/main'
+        working-directory: ${{ steps.source.outputs.dir }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="ascend-electric-2.5.0"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend Electric 2.5.0" --notes "Fresh standalone Android installation. Electric-lime full-screen theme, modern navigation and all existing Ascend features. Install the APK directly; no ZIP extraction needed."
+          gh release upload "$TAG" "Ascend-Electric-2.5.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-Electric-2.4-APK
+          name: Ascend-Electric-2.5-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
