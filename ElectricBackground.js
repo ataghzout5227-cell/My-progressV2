@@ -36,13 +36,19 @@ const palette=[
   {color:'#9BFF52',scale:2.8/4.4,opacity:.55},
   {color:'#E0FFC5',scale:.85/4.4,opacity:.86},
 ];
+// Batch hundreds of filament segments into a few vector paths for smooth Android scrolling.
+const buckets=new Map();
+for(const item of filaments){
+  const thickness=Math.max(.25,Math.round(item.width*2)/2);
+  if(!buckets.has(thickness))buckets.set(thickness,[]);
+  buckets.get(thickness).push(item.d);
+}
 const rendered=palette.flatMap((layer,i)=>
-  filaments.map((item,j)=>
-    <Path key={i+'-'+j} d={item.d} fill="none"
-      stroke={layer.color}
-      strokeWidth={Math.max(.12,item.width*layer.scale)}
+  Array.from(buckets.entries()).map(([thickness,paths],j)=>
+    <Path key={i+'-'+j} d={paths.join(' ')} fill="none"
+      stroke={layer.color} strokeWidth={Math.max(.12,thickness*layer.scale)}
       strokeLinecap="round" strokeLinejoin="round"
-      opacity={layer.opacity*(item.width<1?.28:1)}/>
+      opacity={layer.opacity*(thickness<1?.28:1)}/>
   )
 );
 function ElectricBackground({tab='Home',settings=false}){
