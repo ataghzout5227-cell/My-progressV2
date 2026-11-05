@@ -57,7 +57,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
-          cp "$APK" "Ascend-Electric-2.5.apk"
+          cp "$APK" "Ascend-Electric-2.6.apk"
       - name: Publish direct APK on GitHub Releases
         if: github.ref == 'refs/heads/main'
         working-directory: ${{ steps.source.outputs.dir }}
@@ -66,12 +66,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="ascend-electric-2.5.0"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend Electric 2.5.0" --notes "Fresh standalone Android installation. Electric-lime full-screen theme, modern navigation and all existing Ascend features. Install the APK directly; no ZIP extraction needed."
-          gh release upload "$TAG" "Ascend-Electric-2.5.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          TAG="ascend-electric-2.6.0"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend Electric 2.6.0" --notes "Customizable Storm, Strike, Plasma and Minimal lightning; seven color presets; intensity levels; customizable Thunder A logo; locally saved appearance preferences. Existing journal, progress and cloud functionality retained. Direct APK, no ZIP extraction."
+          gh release upload "$TAG" "Ascend-Electric-2.6.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-Electric-2.5-APK
+          name: Ascend-Electric-2.6-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
