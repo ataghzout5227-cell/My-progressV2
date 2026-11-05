@@ -32,7 +32,7 @@ export function normalizeAppearance(value){
 }
 function Palette({title,selected,onSelect}){
   return <View style={{gap:10}}>
-    <Text style={styles.label}>{title}</Text>
+    <Text style={[styles.label,{color:selected}]}>{title}</Text>
     <View style={styles.palette}>
       {COLOR_OPTIONS.map(item=><TouchableOpacity key={item.color} activeOpacity={.8}
         accessibilityRole="button" accessibilityLabel={item.label}
@@ -51,7 +51,7 @@ export default function AppearanceSettings({appearance,onChange}){
   const selected=useMemo(()=>normalizeAppearance(appearance),[appearance]);
   const logoColor=selected.logoMatch?selected.lightningColor:selected.logoColor;
   const set=(patch)=>onChange(normalizeAppearance({...selected,...patch}));
-  return <View style={styles.panel}>
+  return <View style={[styles.panel,{borderColor:selected.lightningColor+'77'}]}>
     <View style={styles.top}>
       <View style={{flex:1}}>
         <Text style={styles.title}>Appearance</Text>
@@ -60,7 +60,7 @@ export default function AppearanceSettings({appearance,onChange}){
       <ThunderLogo color={logoColor} size={58}/>
     </View>
     <View style={styles.separator}/>
-    <Text style={styles.label}>LIGHTNING STYLE</Text>
+    <Text style={[styles.label,{color:selected.lightningColor}]}>LIGHTNING STYLE</Text>
     <View style={styles.stylesGrid}>{LIGHTNING_STYLES.map(item=><TouchableOpacity key={item.id} onPress={()=>set({style:item.id})}
       accessibilityRole="button" accessibilityState={{selected:selected.style===item.id}}
       style={[styles.styleChoice,selected.style===item.id&&{borderColor:selected.lightningColor,backgroundColor:'rgba(43,59,33,.95)'}]}>
@@ -68,7 +68,7 @@ export default function AppearanceSettings({appearance,onChange}){
       <Text style={styles.styleSub}>{item.description}</Text>
     </TouchableOpacity>)}</View>
     <Palette title="LIGHTNING COLOR" selected={selected.lightningColor} onSelect={color=>set({lightningColor:color})}/>
-    <View style={styles.intensityHeader}><Text style={styles.label}>LIGHTNING INTENSITY</Text><Text style={styles.number}>{selected.intensity}%</Text></View>
+    <View style={styles.intensityHeader}><Text style={[styles.label,{color:selected.lightningColor}]}>LIGHTNING INTENSITY</Text><Text style={styles.number}>{selected.intensity}%</Text></View>
     <View style={styles.intensityRow}>
       <TouchableOpacity accessibilityLabel="Decrease lightning intensity" onPress={()=>set({intensity:selected.intensity-5})}
         style={styles.adjust}><Minus size={19} color="#DDF8C7"/></TouchableOpacity>
@@ -79,10 +79,10 @@ export default function AppearanceSettings({appearance,onChange}){
         style={styles.adjust}><Plus size={19} color="#DDF8C7"/></TouchableOpacity>
     </View>
     <View style={styles.separator}/>
-    <Text style={styles.label}>THUNDER A LOGO</Text>
+    <Text style={[styles.label,{color:selected.lightningColor}]}>THUNDER A LOGO</Text>
     <View style={styles.logoPreview}><ThunderLogo color={logoColor} size={78}/>
       <View style={{flex:1,gap:5}}><Text style={styles.styleName}>Thunder A</Text>
-      <Text style={styles.styleSub}>Your chosen Ascend logo. The logo in the app header uses this color.</Text></View>
+      </View>
     </View>
     <TouchableOpacity style={styles.match} onPress={()=>set({logoMatch:!selected.logoMatch})} accessibilityRole="switch"
       accessibilityState={{checked:selected.logoMatch}}>
@@ -96,7 +96,7 @@ export default function AppearanceSettings({appearance,onChange}){
     <TouchableOpacity onPress={()=>onChange({...DEFAULT_APPEARANCE})} style={styles.reset}>
       <RotateCcw size={17} color="#C4D4BA"/><Text style={styles.resetText}>Restore default appearance</Text>
     </TouchableOpacity>
-    <Text style={styles.foot}>Preferences stay saved on this device when you close and reopen the app. The phone launcher icon stays unchanged.</Text>
+    <Text style={styles.foot}>Preferences stay saved on this device when you close and reopen the app.</Text>
   </View>;
 }
 const styles=StyleSheet.create({
