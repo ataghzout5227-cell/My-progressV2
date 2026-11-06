@@ -1,7 +1,7 @@
 import React from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {AscendProgressWidget} from './AscendProgressWidget';
-import {calculateXP,levelInfo} from './progression';
+import {calculateXP,calculateAchievementCount,levelInfo} from './progression';
 import {KEYS} from './dataSafety';
 
 export async function widgetTaskHandler(props){
@@ -16,7 +16,7 @@ export async function widgetTaskHandler(props){
     const data=progress?JSON.parse(progress):{};
     const sessions=focus?JSON.parse(focus):[];
     const appearance=look?JSON.parse(look):{};
-    const level=levelInfo(calculateXP(data,sessions));
+    const level=levelInfo(calculateXP(data,sessions,calculateAchievementCount(data)));
     const today=new Date().toISOString().slice(0,10);
     const days=new Set([
       ...(data.runs||[]).map(r=>r.date),
