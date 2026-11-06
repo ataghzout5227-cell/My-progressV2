@@ -17,6 +17,26 @@ export function calculateXP(data={},focusSessions=[],unlockedAchievements=0){
     Math.max(0,unlockedAchievements)*XP.achievement;
 }
 // Each level needs a little more than the last. Balanced pace, no punishment.
+export function calculateAchievementCount(data={}){
+  const days=new Set();
+  (data.runs||[]).forEach(r=>{if(r.date)days.add(r.date)});
+  Object.entries(data.workouts||{}).forEach(([date,w])=>{
+    if(w&&(w.completed||numeric(w.pushups)>0||numeric(w.plankMinutes)>0||numeric(w.plankSeconds)>0))days.add(date);
+  });
+  Object.entries(data.goalChecks||{}).forEach(([date,done])=>{if(done)days.add(date)});
+  Object.entries(data.runCheckDates||{}).forEach(([id,date])=>{if(data.runChecks?.[id]&&date)days.add(date)});
+  const ordered=[...days].sort();
+  let best=0,chain=0,prev=null;
+  for(const date of ordered){
+    const gap=prev?Math.round((Date.parse(date+'T12:00:00')-Date.parse(prev+'T12:00:00'))/86400000):999;
+    chain=gap===1?chain+1:1;best=Math.max(best,chain);prev=date;
+  }
+  const planned=Object.values(data.runChecks||{}).filter(Boolean).length;
+  const totalPush=Object.values(data.workouts||{}).reduce((sum,w)=>sum+numeric(w?.pushups),0);
+  const totalPlank=Object.values(data.workouts||{}).reduce((sum,w)=>sum+(w?.plankMinutes!=null?numeric(w.plankMinutes):numeric(w?.plankSeconds)/60),0);
+  const goals=Math.max(Object.values(data.goalChecks||{}).filter(Boolean).length,...(data.cycles||[]).map(c=>numeric(c.completed)),0);
+  return [days.size>=1,best>=5,best>=7,planned>=5,planned>=12,totalPush>=100,totalPlank>=10,goals>=30].filter(Boolean).length;
+}
 export function levelInfo(totalXP){
   const xp=Math.max(0,Math.floor(totalXP||0));
   let level=1,start=0,cost=300;
