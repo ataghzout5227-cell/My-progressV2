@@ -45,14 +45,22 @@ export default function App(){
  const [cloudSyncReady,setCloudSyncReady]=useState(false),[cloudDirty,setCloudDirty]=useState(0),[cloudStatus,setCloudStatus]=useState('');
  const cloudLatestRef=useRef({data:startData,appearance:{...DEFAULT_APPEARANCE}});
  const cloudLinkedRef=useRef(null),cloudPendingRef=useRef(false),cloudQueueRef=useRef(Promise.resolve());
+ const appearanceInitiallySaved=useRef(false),cloudChangeVersion=useRef(0);
  const [timerMs,setTimerMs]=useState(0),[timerRunning,setTimerRunning]=useState(false);
  const timerBaseRef=useRef(0),timerStartRef=useRef(null);
  useEffect(()=>{AsyncStorage.getItem('ascend-v1').then(x=>{if(x){try{const d=JSON.parse(x);setData({...startData,...d,runChecks:d.runChecks||{},cycles:d.cycles||[],runCheckDates:d.runCheckDates||{},runPlanEdits:d.runPlanEdits||{},goalName:d.goalName||startData.goalName,runGoal:d.runGoal||8})}catch(e){Alert.alert('Data warning','Saved data could not be read.')}}setReady(true)}).catch(()=>setReady(true))},[]);
  useEffect(()=>{let active=true;AsyncStorage.getItem('ascend-appearance-v1').then(value=>{if(active&&value){try{setAppearance(normalizeAppearance(JSON.parse(value)))}catch(e){}}}).catch(()=>{}).finally(()=>{if(active)setAppearanceReady(true)});return()=>{active=false}},[]);
  useEffect(()=>{cloudLatestRef.current.appearance=appearance;
    if(appearanceReady){
-     AsyncStorage.multiSet([['ascend-appearance-v1',JSON.stringify(appearance)],['ascend-cloud-local-updated',new Date().toISOString()]]) .catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
-     if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
+     if(!appearanceInitiallySaved.current){
+       appearanceInitiallySaved.current=true;
+       AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(appearance))
+         .catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
+     }else{
+       AsyncStorage.multiSet([['ascend-appearance-v1',JSON.stringify(appearance)],['ascend-cloud-local-updated',new Date().toISOString()]])
+         .catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
+       if(cloudSyncReady){cloudChangeVersion.current++;cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
+     }
    }
  },[appearance,appearanceReady]);
  useEffect(()=>{cloudLatestRef.current.data=data},[data]);
@@ -62,7 +70,7 @@ export default function App(){
    setData(next);
    AsyncStorage.multiSet([['ascend-v1',JSON.stringify(next)],['ascend-cloud-local-updated',new Date().toISOString()]])
      .catch(()=>Alert.alert('Save error','Your changes could not be stored.'));
-   if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
+   if(cloudSyncReady){cloudChangeVersion.current++;cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
  };
  // Never silently overwrite an existing cloud account with an unrelated local installation.
  useEffect(()=>{
@@ -132,13 +140,15 @@ export default function App(){
        if(cloudLinkedRef.current!==userId||!cloudPendingRef.current)return;
        setCloudStatus('Syncing to Supabase…');
        try{
+         const requestedVersion=cloudChangeVersion.current;
          const before=cloudLatestRef.current.appearance;
          const after=await prepareCloudBackground(userId,before);
          if(after!==before){cloudLatestRef.current.appearance=after;setAppearance(after)}
          const latest=cloudLatestRef.current;
          await pushCloudState(userId,latest.data,latest.appearance);
-         cloudPendingRef.current=false;
-         setCloudStatus('Synced to Supabase');
+         cloudPendingRef.current=(requestedVersion!==cloudChangeVersion.current);
+         setCloudStatus(cloudPendingRef.current?'Syncing latest changes…':'Synced to Supabase');
+         if(cloudPendingRef.current)setCloudDirty(x=>x+1);
        }catch(e){cloudPendingRef.current=true;setCloudStatus('Offline · waiting to sync')}
      });
    },900);
