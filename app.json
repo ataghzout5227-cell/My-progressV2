@@ -2,18 +2,25 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.7.1",
+    "version": "2.7.2",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
       }
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Allow Ascend to choose a custom background photo."
+        }
+      ]
+    ],
     "icon": "./assets/ascend-icon.png",
     "splash": {
       "image": "./assets/ascend-icon.png",
