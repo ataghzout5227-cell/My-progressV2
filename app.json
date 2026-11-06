@@ -6,7 +6,7 @@
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
-      "package": "com.ascend.electric",
+      "package": "com.ascend.mobile",
       "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
