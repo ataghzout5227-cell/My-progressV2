@@ -9,6 +9,9 @@ import AppearanceSettings,{DEFAULT_APPEARANCE,normalizeAppearance} from './Appea
 import ThunderLogo from './ThunderLogo';
 import FeatureHub from './FeatureHub';
 import {prepareMigration,exportRecoveryBackup,validateImport,importBackupSafely} from './dataSafety';
+import {requestWidgetUpdate} from 'react-native-android-widget';
+import {AscendProgressWidget} from './AscendProgressWidget';
+import {calculateXP,levelInfo} from './progression';
 import {House,Footprints,Dumbbell,Target,NotebookPen,Settings2,ChevronRight,ArrowUpRight, Zap} from 'lucide-react-native';
 
 const BASE_C={bg:'#111211',card:'#242624',card2:'#303330',stroke:'#3F443D',gold:'#A3FF29',teal:'#A3FF29',text:'#F6F8F4',muted:'#A6B0A2',red:'#FF8E91'};
@@ -77,6 +80,7 @@ export default function App(){
  const currentStreak=useMemo(()=>{const daySet=new Set(activeDays);let d=daySet.has(today)?today:addDays(today,-1),count=0;while(daySet.has(d)){count++;d=addDays(d,-1)}return count},[activeDays,today]);
  const badgeValues={days:activeDays.length,best:bestStreak,runs:checkedRuns,push:allPushups,plank:allPlank,goal:Math.max(finishedGoal,...(data.cycles||[]).map(c=>c.completed||0))};
  const unlockedBadges=milestones.filter(m=>(badgeValues[m.type]||0)>=m.needed).length;
+ useEffect(()=>{if(!ready)return;const l=levelInfo(calculateXP(data,[],unlockedBadges));requestWidgetUpdate({widgetName:'AscendProgress',renderWidget:()=> <AscendProgressWidget level={l.level} xp={l.totalXP} streak={currentStreak} goal={finishedGoal} color={appearance.lightningColor}/>}).catch(()=>{});},[data,appearance.lightningColor,ready,currentStreak,finishedGoal,unlockedBadges]);
  useEffect(()=>{if(!timerRunning)return;const id=setInterval(()=>setTimerMs(timerBaseRef.current+(Date.now()-timerStartRef.current)),200);return()=>clearInterval(id)},[timerRunning]);
  const startTimer=()=>{if(timerRunning)return;timerStartRef.current=Date.now();setTimerRunning(true)};
  const pauseTimer=()=>{if(!timerRunning)return;timerBaseRef.current+=Date.now()-timerStartRef.current;setTimerMs(timerBaseRef.current);setTimerRunning(false)};
