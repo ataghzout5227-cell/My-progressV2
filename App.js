@@ -8,6 +8,7 @@ import ElectricBackground from './ElectricBackground';
 import AppearanceSettings,{DEFAULT_APPEARANCE,normalizeAppearance} from './AppearanceSettings';
 import ThunderLogo from './ThunderLogo';
 import BooksSection from './BooksSection';
+import {cloudPayload,cloudProgress,fetchCloudState,pushCloudState,isEmptyProgress,prepareCloudBackground,downloadCloudBackground} from './cloudState';
 import {House,Footprints,Dumbbell,Target,NotebookPen,BookOpen,Settings2,ChevronRight,ArrowUpRight, Zap} from 'lucide-react-native';
 
 const BASE_C={bg:'#111211',card:'#242624',card2:'#303330',stroke:'#3F443D',gold:'#A3FF29',teal:'#A3FF29',text:'#F6F8F4',muted:'#A6B0A2',red:'#FF8E91'};
@@ -41,13 +42,112 @@ export default function App(){
  const [pinText,setPinText]=useState(''),[pinAgain,setPinAgain]=useState(''),[opened,setOpened]=useState(false),[journalTitle,setJournalTitle]=useState(''),[journalText,setJournalText]=useState(''),[editId,setEditId]=useState(null);
  const [goalText,setGoalText]=useState(''),[runTarget,setRunTarget]=useState('8');
  const [cloudUser,setCloudUser]=useState(null),[cloudEmail,setCloudEmail]=useState(''),[cloudPassword,setCloudPassword]=useState(''),[cloudBusy,setCloudBusy]=useState(false),[cloudInfo,setCloudInfo]=useState('');
+ const [cloudSyncReady,setCloudSyncReady]=useState(false),[cloudDirty,setCloudDirty]=useState(0),[cloudStatus,setCloudStatus]=useState('');
+ const cloudLatestRef=useRef({data:startData,appearance:{...DEFAULT_APPEARANCE}});
+ const cloudLinkedRef=useRef(null),cloudPendingRef=useRef(false),cloudQueueRef=useRef(Promise.resolve());
  const [timerMs,setTimerMs]=useState(0),[timerRunning,setTimerRunning]=useState(false);
  const timerBaseRef=useRef(0),timerStartRef=useRef(null);
  useEffect(()=>{AsyncStorage.getItem('ascend-v1').then(x=>{if(x){try{const d=JSON.parse(x);setData({...startData,...d,runChecks:d.runChecks||{},cycles:d.cycles||[],runCheckDates:d.runCheckDates||{},runPlanEdits:d.runPlanEdits||{},goalName:d.goalName||startData.goalName,runGoal:d.runGoal||8})}catch(e){Alert.alert('Data warning','Saved data could not be read.')}}setReady(true)}).catch(()=>setReady(true))},[]);
  useEffect(()=>{let active=true;AsyncStorage.getItem('ascend-appearance-v1').then(value=>{if(active&&value){try{setAppearance(normalizeAppearance(JSON.parse(value)))}catch(e){}}}).catch(()=>{}).finally(()=>{if(active)setAppearanceReady(true)});return()=>{active=false}},[]);
- useEffect(()=>{if(appearanceReady)AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(appearance)).catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'))},[appearance,appearanceReady]);
+ useEffect(()=>{cloudLatestRef.current.appearance=appearance;
+   if(appearanceReady){
+     AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(appearance)).catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
+     if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
+   }
+ },[appearance,appearanceReady]);
  useEffect(()=>{let live=true;cloud.auth.getSession().then(({data,error})=>{if(live){setCloudUser(data?.session?.user||null);if(error)setCloudInfo('Cloud sign-in unavailable: '+error.message)}}).catch(e=>{if(live)setCloudInfo('Cloud sign-in unavailable')});const {data:subscription}=cloud.auth.onAuthStateChange((_event,session)=>{if(live)setCloudUser(session?.user||null)});return()=>{live=false;subscription.subscription.unsubscribe()}},[]);
- const persist=(next)=>{setData(next);AsyncStorage.setItem('ascend-v1',JSON.stringify(next)).catch(()=>Alert.alert('Save error','Your changes could not be stored.'))};
+ const persist=(next)=>{
+   cloudLatestRef.current.data=next;
+   setData(next);
+   AsyncStorage.multiSet([['ascend-v1',JSON.stringify(next)],['ascend-cloud-local-updated',new Date().toISOString()]])
+     .catch(()=>Alert.alert('Save error','Your changes could not be stored.'));
+   if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
+ };
+ // Never silently overwrite an existing cloud account with an unrelated local installation.
+ useEffect(()=>{
+   if(!ready||!appearanceReady||!cloudUser?.id)return;
+   let alive=true;
+   setCloudSyncReady(false);
+   cloudLinkedRef.current=null;
+   setCloudStatus('Connecting to Supabase…');
+   (async()=>{
+     try{
+       const userId=cloudUser.id;
+       const [remote,linkedUser,lastLocalUpdate]=await Promise.all([
+         fetchCloudState(userId),AsyncStorage.getItem('ascend-cloud-linked-user'),AsyncStorage.getItem('ascend-cloud-local-updated')
+       ]);
+       if(!alive)return;
+       const local=cloudLatestRef.current;
+       const start=async(mode)=>{
+         if(!alive)return;
+         if(mode==='cloud'&&remote?.data){
+           const restored=cloudProgress(remote.data,local.data);
+           cloudLatestRef.current.data=restored;setData(restored);
+           await AsyncStorage.setItem('ascend-v1',JSON.stringify(restored));
+           if(remote.data.ascendAppearance){
+             let look=remote.data.ascendAppearance;
+             try{look=await downloadCloudBackground(look)}catch(e){setCloudStatus('Cloud background could not be downloaded')}
+             const normalized=normalizeAppearance(look);
+             cloudLatestRef.current.appearance=normalized;
+             setAppearance(normalized);
+             await AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(normalized));
+           }
+         }else{
+           const syncedLook=await prepareCloudBackground(userId,local.appearance);
+           if(syncedLook!==local.appearance){cloudLatestRef.current.appearance=syncedLook;setAppearance(syncedLook)}
+           await pushCloudState(userId,cloudLatestRef.current.data,syncedLook);
+         }
+         if(!alive)return;
+         await AsyncStorage.setItem('ascend-cloud-linked-user',userId);
+         cloudLinkedRef.current=userId;
+         cloudPendingRef.current=false;
+         setCloudSyncReady(true);setCloudStatus('Synced to Supabase');
+       };
+       if(!remote?.data){await start('local');return}
+       if(isEmptyProgress(local.data)){await start('cloud');return}
+       if(linkedUser===userId){
+         const remoteTimestamp=Date.parse(remote.updated_at||'');
+         const localTimestamp=Date.parse(lastLocalUpdate||'');
+         await start(Number.isFinite(localTimestamp)&&localTimestamp>remoteTimestamp?'local':'cloud');
+         return;
+       }
+       Alert.alert('Choose your saved progress',
+         'This Supabase account already has saved accomplishments. Choose which version to keep. This affects running, workouts, goals, and your Journal.',
+         [{text:'Keep this phone',onPress:()=>start('local').catch(e=>setCloudStatus('Sync failed: '+e.message))},
+          {text:'Use Supabase',onPress:()=>start('cloud').catch(e=>setCloudStatus('Sync failed: '+e.message))}],
+         {cancelable:false});
+     }catch(e){if(alive)setCloudStatus('Offline · local progress remains saved')}
+   })();
+   return()=>{alive=false};
+ },[ready,appearanceReady,cloudUser?.id]);
+ useEffect(()=>{
+   if(!cloudUser?.id){cloudLinkedRef.current=null;setCloudSyncReady(false);setCloudStatus('Sign in to sync with Supabase')}
+ },[cloudUser?.id]);
+ useEffect(()=>{
+   if(!cloudSyncReady||!cloudUser?.id||!cloudPendingRef.current)return;
+   const userId=cloudUser.id;
+   const timeout=setTimeout(()=>{
+     cloudQueueRef.current=cloudQueueRef.current.catch(()=>{}).then(async()=>{
+       if(cloudLinkedRef.current!==userId||!cloudPendingRef.current)return;
+       setCloudStatus('Syncing to Supabase…');
+       try{
+         const before=cloudLatestRef.current.appearance;
+         const after=await prepareCloudBackground(userId,before);
+         if(after!==before){cloudLatestRef.current.appearance=after;setAppearance(after)}
+         const latest=cloudLatestRef.current;
+         await pushCloudState(userId,latest.data,latest.appearance);
+         cloudPendingRef.current=false;
+         setCloudStatus('Synced to Supabase');
+       }catch(e){cloudPendingRef.current=true;setCloudStatus('Offline · waiting to sync')}
+     });
+   },900);
+   return()=>clearTimeout(timeout);
+ },[cloudDirty,cloudSyncReady,cloudUser?.id]);
+ useEffect(()=>{
+   if(!cloudSyncReady||!cloudUser?.id)return;
+   const timer=setInterval(()=>{if(cloudPendingRef.current)setCloudDirty(x=>x+1)},20000);
+   return()=>clearInterval(timer);
+ },[cloudSyncReady,cloudUser?.id]);
  const today=dateKey(),goalDay=daysDiff(data.goalStart,today)+1;
  const finishedGoal=Object.entries(data.goalChecks||{}).filter(([k,v])=>v&&daysDiff(data.goalStart,k)>=0&&daysDiff(data.goalStart,k)<30).length;
  const checkedRuns=Object.values(data.runChecks||{}).filter(Boolean).length;
@@ -93,7 +193,7 @@ export default function App(){
  if(!ready)return <ThemeContext.Provider value={theme}><SafeAreaView style={s.root}><Text style={s.brand}>ASCEND</Text></SafeAreaView></ThemeContext.Provider>;
  return <ThemeContext.Provider value={theme}><SafeAreaView style={s.root}>{appearance.backgroundUri?<><Image pointerEvents="none" source={{uri:appearance.backgroundUri}} resizeMode="cover" style={StyleSheet.absoluteFillObject}/><View pointerEvents="none" style={[StyleSheet.absoluteFillObject,{backgroundColor:'rgba(3,7,5,0.52)'}]}/></>:null}<ElectricBackground tab={tab} settings={settings} appearance={appearance} photoMode={!!appearance.backgroundUri}/><StatusBar style="light" translucent backgroundColor="transparent"/>{heading}<KeyboardAvoidingView behavior={Platform.OS==='ios'?'padding':undefined} style={{flex:1}}><ScrollView keyboardShouldPersistTaps="always" contentContainerStyle={s.content}>
  {settings?<><Label>PREFERENCES</Label><H subtitle="Personalize your experience and manage saved data.">Settings</H><AppearanceSettings appearance={appearance} onChange={setAppearance}/><Card><View style={s.rowSpace}><Text style={s.cardTitle}>Private cloud account</Text><Text style={{color:cloudUser?C.teal:C.muted,fontWeight:'800'}}>{cloudUser?'CONNECTED':'OFFLINE'}</Text></View><Text style={s.muted}>Your private Supabase database. Progress stays on this phone until you explicitly back it up. Journal entries and PIN are never uploaded.</Text>{cloudUser?<><Text style={s.body}>{cloudUser.email||'Signed in'}</Text><Tap title={cloudBusy?'Please wait…':'Back up progress to cloud'} onPress={backupCloud}/><Tap title={cloudBusy?'Please wait…':'Restore progress from cloud'} kind="outline" onPress={restoreCloud}/><Tap title="Sign out" kind="outline" onPress={logoutCloud}/></>:<><Input value={cloudEmail} setValue={setCloudEmail} placeholder="Email address"/><TextInput style={s.input} value={cloudPassword} onChangeText={setCloudPassword} placeholder="Password (8+ characters)" placeholderTextColor="#7990A4" secureTextEntry autoCapitalize="none" autoCorrect={false}/><Tap title={cloudBusy?'Please wait…':'Sign in'} onPress={()=>loginCloud(false)}/><Tap title="Create private account" kind="outline" onPress={()=>loginCloud(true)}/></>}{cloudInfo?<Text style={s.muted}>{cloudInfo}</Text>:null}</Card><Card><Text style={s.cardTitle}>Your private goal</Text><Input value={goalText||data.goalName} setValue={setGoalText} placeholder="Goal name"/><Tap title="Save goal name" onPress={()=>{persist({...data,goalName:(goalText||data.goalName).trim()||startData.goalName});setGoalText('')}}/><Text style={s.cardTitle}>Running target (km)</Text><Input value={runTarget} setValue={setRunTarget} placeholder="Your target km" number/><Tap title="Save running target" onPress={()=>{let n=Number(runTarget);if(n>0&&n<1000)persist({...data,runGoal:n});else Alert.alert('Invalid target','Enter a positive distance below 1,000 km.')}}/></Card><Card><Text style={s.cardTitle}>Your data stays on this device</Text><Text style={s.muted}>Save a backup before changing phones or uninstalling the app. Your journal is PIN-gated, not encrypted. Backups exclude your PIN.</Text><Tap title="Share my data backup" onPress={shareData} kind="outline"/><Tap title="Start new 30-day cycle" onPress={changeCycle} kind="outline"/><Tap title="Reset ALL progress" kind="danger" onPress={()=>Alert.alert('Delete all Ascend data?','Runs, workouts, journals and goals will be permanently deleted.',[{text:'Cancel',style:'cancel'},{text:'Delete everything',style:'destructive',onPress:()=>{persist({...startData,goalStart:today});setOpened(false)}}])}/></Card><Tap title="Back to dashboard" onPress={()=>setSettings(false)}/></>:
- tab==='Books'?<BooksSection accent={C.teal} onBack={()=>setTab('Home')}/>:
+ tab==='Books'?<BooksSection accent={C.teal} cloudUser={cloudUser} onBack={()=>setTab('Home')}/>:
  tab==='Home'?<><Label>WELCOME BACK</Label><H subtitle="One day stronger. One step further.">Your progress</H><LinearGradient colors={['#30392A','#1E241D','#191C18']} start={{x:0,y:0}} end={{x:1,y:1}} style={s.hero}><Text style={s.heroLabel}>TODAY'S MISSION · {shortDate(today).toUpperCase()}</Text><Text style={s.heroTitle}>Keep moving forward.</Text><Text style={s.heroSubtitle}>Your best progress is built one session at a time.</Text><Progress value={finishedGoal} total={30}/><Text style={[s.muted,{color:'#C2DADB'}]}>{finishedGoal} of 30 challenge days completed</Text></LinearGradient><View style={s.metrics}><Stat value={totalKm.toFixed(1)} label="KM COVERED"/><Stat value={checkedRuns+'/24'} label="RUNS DONE"/><Stat value={finishedGoal+'/30'} label="GOAL DAYS"/></View><View style={s.rowSpace}><Text style={s.section}>Your activity</Text><TouchableOpacity onPress={()=>{setTab('Achievements');setOpened(false)}}><Text style={{color:C.teal,fontWeight:'900'}}>View badges ›</Text></TouchableOpacity></View><View style={{flexDirection:'row',gap:10}}><TouchableOpacity onPress={()=>setTab('Running')} style={{flex:1,backgroundColor:C.card,borderColor:C.stroke,borderWidth:1,borderRadius:18,padding:16,minHeight:155}}><Text style={{color:C.teal,fontSize:29,fontWeight:'900',marginBottom:11}}>↗</Text><Text style={s.cardTitle}>Running</Text><Text style={s.muted}>{checkedRuns} sessions done</Text><View style={{marginTop:12}}><Progress value={checkedRuns} total={24}/></View></TouchableOpacity><TouchableOpacity onPress={()=>setTab('Workout')} style={{flex:1,backgroundColor:C.card,borderColor:C.stroke,borderWidth:1,borderRadius:18,padding:16,minHeight:155}}><Text style={{color:C.teal,fontSize:29,fontWeight:'900',marginBottom:11}}>◆</Text><Text style={s.cardTitle}>Strength</Text><Text style={s.muted}>{allPushups} push-ups</Text><Text style={{color:C.teal,fontWeight:'800',marginTop:8}}>{Number(allPlank.toFixed(2))} min plank</Text></TouchableOpacity></View><TouchableOpacity onPress={()=>{setTab('Achievements');setOpened(false)}}><Card style={s.feature}><View style={{width:45,height:45,borderRadius:12,backgroundColor:'#39462F',alignItems:'center',justifyContent:'center'}}><Text style={{color:C.teal,fontSize:26}}>✦</Text></View><View style={{flex:1}}><Text style={s.cardTitle}>{currentStreak} day streak</Text><Text style={s.muted}>Best {bestStreak} days · {unlockedBadges}/{milestones.length} achievement badges</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity><TouchableOpacity onPress={()=>setTab('Books')}><Card style={s.feature}><View style={{width:45,height:45,borderRadius:12,backgroundColor:'#39462F',alignItems:'center',justifyContent:'center',marginRight:12}}><BookOpen size={23} color={C.teal}/></View><View style={{flex:1}}><Text style={s.cardTitle}>Books</Text><Text style={s.muted}>Record your reading and books you've finished</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity><Text style={s.section}>Keep the momentum</Text><TouchableOpacity onPress={()=>setTab('Running')}><Card style={s.feature}><View style={{flex:1}}><Text style={s.featureTag}>RUNNING PLAN</Text><Text style={s.cardTitle}>Your 8-week journey</Text><Text style={s.muted}>{checkedRuns} of 24 sessions completed · Target {data.runGoal} km</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity><TouchableOpacity onPress={()=>setTab('Workout')}><Card style={s.feature}><View style={{flex:1}}><Text style={s.featureTag}>STRENGTH & CORE</Text><Text style={s.cardTitle}>Push-ups + plank</Text><Text style={s.muted}>{allPushups} reps · {Number(allPlank.toFixed(2))} min plank logged</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity><TouchableOpacity onPress={()=>setTab('30 Days')}><Card style={s.feature}><View style={{flex:1}}><Text style={s.featureTag}>PERSONAL CHALLENGE</Text><Text style={s.cardTitle}>{data.goalName}</Text><Text style={s.muted}>Day {Math.max(1,Math.min(30,goalDay))} · {finishedGoal} check-ins</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity><TouchableOpacity onPress={()=>setTab('Journal')}><Card style={s.feature}><View style={{flex:1}}><Text style={s.featureTag}>PRIVATE SPACE</Text><Text style={s.cardTitle}>Your journal</Text><Text style={s.muted}>{(data.journal||[]).length} reflections · Protected by a PIN</Text></View><Text style={s.featureArrow}>↗</Text></Card></TouchableOpacity></>:
  tab==='Running'?<><Label>ENDURANCE · CONSISTENCY</Label><H subtitle="A progressive eight-week plan with three sessions each week. Mark sessions completed and log your actual distance.">Running</H><LinearGradient colors={['#313D26','#20291C']} style={s.hero}><Text style={s.heroLabel}>YOUR RUNNING PROGRESS</Text><Text style={s.heroTitle}>{checkedRuns} <Text style={{color:C.muted,fontSize:20}}>/ 24 sessions</Text></Text><Progress value={checkedRuns} total={24}/><View style={{flexDirection:'row',justifyContent:'space-between'}}><Text style={s.muted}>{totalKm.toFixed(2)} km completed (plan + manual)</Text><Text style={s.muted}>{24-checkedRuns} sessions left</Text></View></LinearGradient><Card><Text style={s.cardTitle}>Log a new run</Text><View style={{flexDirection:'row',gap:10}}><View style={{flex:1}}><Input value={km} setValue={setKm} placeholder="Distance (km)" number/></View><View style={{flex:1}}><Input value={min} setValue={setMin} placeholder="Time (min)" number/></View></View><Input value={runNote} setValue={setRunNote} placeholder="Notes (optional)"/><Tap title="＋ Save this run" onPress={logRun}/></Card><Text style={s.section}>8-week training plan</Text>{Array.from({length:8},(_,wi)=>{const items=configuredPlan.filter(p=>p.week===wi+1),done=items.filter(p=>data.runChecks[p.id]).length;return <Card key={wi}><View style={s.rowSpace}><Text style={s.cardTitle}>Week {wi+1}</Text><Text style={s.muted}>{done}/3</Text></View><Progress value={done} total={3}/>{items.map(p=><View key={p.id}><Check label={'Day '+p.session+' · '+p.km+' km'} detail={'Tap to count '+p.km+' km automatically toward your total'} checked={!!data.runChecks[p.id]} onPress={()=>{const isDone=!!data.runChecks[p.id];persist({...data,runChecks:{...data.runChecks,[p.id]:!isDone},runCheckDates:{...(data.runCheckDates||{}),[p.id]:isDone?null:today}})}}/>{editingRunId===p.id?<View style={{gap:10,backgroundColor:'#1C201B',padding:12,borderRadius:14,marginBottom:12}}><Text style={s.cardTitle}>Edit Day {p.session}</Text><Text style={s.muted}>Distance (whole km)</Text><Input value={editDistance} setValue={updateTargetDistance} placeholder="Target distance, e.g. 8" number/><Text style={s.muted}>Target pace for each kilometre (mm:ss)</Text>{editPaces.map((v,i)=><View key={i} style={{flexDirection:'row',alignItems:'center',gap:10}}><Text style={[s.body,{width:58}]}>KM {i+1}</Text><View style={{flex:1}}><Input value={v} setValue={value=>setEditPaces(a=>a.map((x,j)=>j===i?value:x))} placeholder="6:45"/></View></View>)}<Tap title="Save targets" onPress={saveRunPlan}/><Tap title="Cancel" kind="outline" onPress={()=>setEditingRunId(null)}/>{data.runPlanEdits?.[p.id]&&<Tap title="Restore original distance and pace" kind="danger" onPress={()=>restoreRunPlan(p.id)}/>}</View>:<><View style={{flexDirection:'row',flexWrap:'wrap',gap:6,paddingBottom:10}}>{p.paces.map((pace,i)=><View key={i} style={{backgroundColor:'#0B1B2D',borderRadius:8,paddingVertical:6,paddingHorizontal:8,alignItems:'center'}}><Text style={{color:C.muted,fontSize:10}}>{i+1} KM</Text><Text style={{color:C.text,fontWeight:'800',fontSize:12}}>{pace}</Text></View>)}</View><Tap title={'✎ Edit Day '+p.session+' distance and pace'} kind="outline" small onPress={()=>openRunEditor(p)}/></>}</View>)}</Card>})}<Text style={s.section}>Run history</Text>{!data.runs?.length?<Card><Text style={s.muted}>Your completed runs will appear here.</Text></Card>:data.runs.map(r=><Card key={r.id}><View style={s.rowSpace}><Text style={s.cardTitle}>{r.km} km</Text><Text style={s.muted}>{shortDate(r.date)}</Text></View><Text style={s.body}>{r.mins} min · {(r.mins/r.km).toFixed(2)} min/km pace</Text>{r.note?<Text style={s.muted}>{r.note}</Text>:null}<Tap kind="danger" small title="Delete run" onPress={()=>Alert.alert('Remove this run?','This action cannot be undone.',[{text:'Cancel'},{text:'Remove',style:'destructive',onPress:()=>persist({...data,runs:data.runs.filter(x=>x.id!==r.id)})}])}/></Card>)}</>:
  tab==='Workout'?<><Label>STRENGTH · EVERY REP COUNTS</Label><H subtitle="Log your push-ups and plank time, for any date. Your history stays saved on your phone.">Workout</H><View style={s.metrics}><Stat value={allPushups} label="TOTAL REPS"/><Stat value={Number(allPlank.toFixed(2))+'m'} label="PLANK TIME"/><Stat value={Object.values(data.workouts||{}).filter(x=>x.completed||x.pushups||x.plankMinutes||x.plankSeconds).length} label="DAYS LOGGED"/></View><Card><View style={s.rowSpace}><Text style={s.cardTitle}>Built-in plank timer</Text><Text style={{color:C.teal,fontWeight:'900'}}>STOPWATCH</Text></View><Text style={s.muted}>Start your plank, pause anytime and save the measured duration directly in minutes.</Text><Text style={{color:C.gold,fontSize:52,fontWeight:'900',textAlign:'center',fontVariant:['tabular-nums'],marginVertical:10}}>{timerMinutes}:{timerSeconds}</Text><View style={{flexDirection:'row',gap:8}}><View style={{flex:1}}><Tap title={timerRunning?'Pause':'Start / Resume'} onPress={timerRunning?pauseTimer:startTimer}/></View><View style={{flex:1}}><Tap kind="outline" title="Reset" onPress={resetTimer}/></View></View><Tap title="✓ Save plank time in minutes" onPress={saveTimer}/></Card><Card><Text style={s.cardTitle}>Record training</Text><Text style={s.muted}>Selected day: {shortDate(exerciseDate)}</Text><View style={{flexDirection:'row',gap:8}}>{[-1,0,1].map(offset=><TouchableOpacity key={offset} onPress={()=>setExerciseDate(addDays(exerciseDate,offset===0?daysDiff(exerciseDate,today):offset))} style={[s.dayButton,offset===0&&{backgroundColor:C.card2}]}><Text style={s.body}>{offset===-1?'← Earlier':offset===0?'Today':'Later →'}</Text></TouchableOpacity>)}</View><Input value={reps} setValue={setReps} placeholder="Push-ups completed (reps)" number/><Input value={plank} setValue={setPlank} placeholder="Plank hold (minutes, e.g. 1.5)" number/><Tap title="✓ Save workout" onPress={saveWorkout}/></Card><Text style={s.section}>Recent workouts</Text>{Object.entries(data.workouts||{}).filter(([k,v])=>v.completed||v.pushups||v.plankMinutes||v.plankSeconds).sort((a,b)=>b[0].localeCompare(a[0])).slice(0,30).map(([k,v])=><TouchableOpacity key={k} onPress={()=>setExerciseDate(k)}><Card style={s.feature}><View style={{flex:1}}><Text style={s.cardTitle}>{shortDate(k)}</Text><Text style={s.muted}>{Number(v.pushups)||0} push-ups · {Number((v.plankMinutes!=null?Number(v.plankMinutes):Number(v.plankSeconds||0)/60).toFixed(2))} min plank</Text></View><Text style={s.featureArrow}>✓</Text></Card></TouchableOpacity>)}<Card><Text style={s.muted}>Tip: Build gradually and allow time for recovery. The plan is flexible; you can edit previously saved sessions.</Text></Card></>:
