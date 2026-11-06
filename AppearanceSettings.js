@@ -35,7 +35,9 @@ export function normalizeAppearance(value){
     logoMatch:value.logoMatch!==false,
     logoColor:colors.includes(value.logoColor)?value.logoColor:DEFAULT_APPEARANCE.logoColor,
     backgroundUri:typeof value.backgroundUri==='string'&&value.backgroundUri.startsWith('file://')?value.backgroundUri:null,
-    showLightningOnPhoto:value.showLightningOnPhoto===true
+    showLightningOnPhoto:value.showLightningOnPhoto===true,
+    cloudBackgroundPath:typeof value.cloudBackgroundPath==='string'?value.cloudBackgroundPath:null,
+    cloudBackgroundSource:typeof value.cloudBackgroundSource==='string'?value.cloudBackgroundSource:null
   };
 }
 function Palette({title,selected,onSelect}){
@@ -71,7 +73,7 @@ export default function AppearanceSettings({appearance,onChange}){
       await FileSystem.copyAsync({from:asset.uri,to:staging});
       const info=await FileSystem.getInfoAsync(staging);
       if(!info.exists||!info.size)throw new Error('The selected photo could not be saved.');
-      if(info.size>12000000){await FileSystem.deleteAsync(staging,{idempotent:true});throw new Error('The photo is too large. Choose a smaller image.')}
+      if(info.size>10000000){await FileSystem.deleteAsync(staging,{idempotent:true});throw new Error('The photo is too large. Choose a smaller image.')}
       // Use a unique file name to avoid stale Android image caches.
       const permanent=FileSystem.documentDirectory+'ascend-background-'+Date.now()+'.jpg';
       await FileSystem.moveAsync({from:staging,to:permanent});

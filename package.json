@@ -20,6 +20,7 @@
     "react-native-svg": "15.12.1",
     "lucide-react-native": "1.66.0",
     "expo-image-picker": "~17.0.8",
-    "expo-file-system": "~19.0.17"
+    "expo-file-system": "~19.0.17",
+    "base64-arraybuffer": "^1.0.2"
   }
 }
