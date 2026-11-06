@@ -73,7 +73,7 @@ export default function AppearanceSettings({appearance,onChange}){
       await FileSystem.copyAsync({from:asset.uri,to:staging});
       const info=await FileSystem.getInfoAsync(staging);
       if(!info.exists||!info.size)throw new Error('The selected photo could not be saved.');
-      if(info.size>12000000){await FileSystem.deleteAsync(staging,{idempotent:true});throw new Error('The photo is too large. Choose a smaller image.')}
+      if(info.size>10000000){await FileSystem.deleteAsync(staging,{idempotent:true});throw new Error('The photo is too large. Choose a smaller image.')}
       // Use a unique file name to avoid stale Android image caches.
       const permanent=FileSystem.documentDirectory+'ascend-background-'+Date.now()+'.jpg';
       await FileSystem.moveAsync({from:staging,to:permanent});
