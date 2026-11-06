@@ -5,7 +5,7 @@ import {decode} from 'base64-arraybuffer';
 const BUCKET='ascend-private-media';
 const date=()=>new Date().toISOString();
 const withoutLocalImage=book=>{
-  const {coverUri,...safe}=book;
+  const {coverUri,cloudCoverUrl,cloudSyncedAt,cloudCoverSource,...safe}=book;
   return safe;
 };
 const objectName=(userId,id,epoch)=>userId+'/books/'+id.replace(/[^a-z0-9_-]/gi,'_')+'-'+epoch+'.jpg';
