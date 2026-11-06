@@ -4,7 +4,7 @@ on:
     branches: [ascend-2.8-dev]
   workflow_dispatch:
 permissions:
-  contents: read
+  contents: write
 jobs:
   qa:
     runs-on: ubuntu-latest
@@ -35,5 +35,37 @@ jobs:
         env:
           NODE_ENV: development
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
-      - name: Confirm no release APK published
-        run: test ! -e android/app/build/outputs/apk/release/app-release.apk
+      # Test builds are deliberately temporary/debug-signed. Never use for permanent updates.
+      # The production build on main still requires the four persistent signing secrets.
+      - name: Build standalone TEST APK
+        working-directory: android
+        env:
+          NODE_ENV: production
+        run: ./gradlew assembleRelease --no-daemon
+      - name: Validate test APK integrity
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/release/app-release.apk"
+          test -s "$APK"
+          unzip -t "$APK" | tail -n 2
+          BUILD_TOOLS=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
+          "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
+          "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E '^(package:|sdkVersion:|targetSdkVersion:)'
+          cp "$APK" "Ascend-2.8-beta.apk"
+      - name: Publish direct TEST APK prerelease
+        env:
+          GH_TOKEN: ${{ github.token }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="ascend-2.8-beta"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --target "$GITHUB_SHA" --title "Ascend 2.8 BETA — test only" --prerelease --notes "TEST ONLY. Temporary debug signing: not compatible with future in-place updates. Separate com.ascend.mobile app, so Ascend 2.7.1 remains installed. Export 2.7.1 Journal data privately and import into 2.8. Do not uninstall the older app before checking everything."
+          gh release upload "$TAG" "Ascend-2.8-beta.apk" --clobber
+      - name: Upload test APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Ascend-2.8-Beta-APK
+          path: android/app/build/outputs/apk/release/app-release.apk
+          if-no-files-found: error
