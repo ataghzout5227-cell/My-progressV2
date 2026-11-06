@@ -102,7 +102,14 @@ export default function App(){
              await AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(normalized));
            }
          }else{
-           const syncedLook=await prepareCloudBackground(userId,local.appearance);
+           if(mode==='fresh'){
+             await AsyncStorage.setItem('ascend-before-account-switch',JSON.stringify({date:new Date().toISOString(),data:local.data,appearance:local.appearance}));
+             cloudLatestRef.current.data={...startData,goalStart:dateKey()};
+             cloudLatestRef.current.appearance={...DEFAULT_APPEARANCE};
+             setData(cloudLatestRef.current.data);setAppearance(cloudLatestRef.current.appearance);
+             await AsyncStorage.multiSet([['ascend-v1',JSON.stringify(cloudLatestRef.current.data)],['ascend-appearance-v1',JSON.stringify(cloudLatestRef.current.appearance)]]);
+           }
+           const syncedLook=await prepareCloudBackground(userId,cloudLatestRef.current.appearance);
            if(syncedLook!==local.appearance){cloudLatestRef.current.appearance=syncedLook;setAppearance(syncedLook)}
            await pushCloudState(userId,cloudLatestRef.current.data,syncedLook);
          }
@@ -112,7 +119,16 @@ export default function App(){
          cloudPendingRef.current=false;
          setCloudSyncReady(true);setCloudStatus('Synced to Supabase');
        };
-       if(!remote?.data){await start('local');return}
+       if(!remote?.data){
+         if(linkedUser&&linkedUser!==userId&&!isEmptyProgress(local.data)){
+           Alert.alert('Different Supabase account','This phone contains progress and Journal entries from a previously linked account. Start fresh or explicitly transfer that data?',[
+             {text:'Start fresh',onPress:()=>start('fresh').catch(e=>setCloudStatus('Sync failed: '+e.message))},
+             {text:'Transfer my local data',onPress:()=>start('local').catch(e=>setCloudStatus('Sync failed: '+e.message))}
+           ],{cancelable:false});
+           return;
+         }
+         await start('local');return;
+       }
        if(isEmptyProgress(local.data)){await start('cloud');return}
        if(linkedUser===userId){
          const remoteTimestamp=Date.parse(remote.updated_at||'');
