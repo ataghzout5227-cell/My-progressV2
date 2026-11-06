@@ -2,12 +2,12 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.7.3",
+    "version": "2.7.4",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
@@ -18,6 +18,43 @@
         "expo-image-picker",
         {
           "photosPermission": "Allow Ascend to choose a custom background photo."
+        }
+      ],
+      [
+        "expo-awesome-app-icon",
+        {
+          "icons": {
+            "cat": {
+              "android": {
+                "image": "./assets/mascots/cat.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "ghost": {
+              "android": {
+                "image": "./assets/mascots/ghost.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "bunny": {
+              "android": {
+                "image": "./assets/mascots/bunny.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "doodle": {
+              "android": {
+                "image": "./assets/mascots/doodle.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "flame": {
+              "android": {
+                "image": "./assets/mascots/flame.png",
+                "backgroundColor": "#141019"
+              }
+            }
+          }
         }
       ]
     ],

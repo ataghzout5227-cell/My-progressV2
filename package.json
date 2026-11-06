@@ -5,7 +5,8 @@
   "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo run:android"
+    "android": "expo run:android",
+    "postinstall": "node scripts/generate-mascots.cjs"
   },
   "dependencies": {
     "expo": "~54.0.29",
@@ -21,6 +22,10 @@
     "lucide-react-native": "1.66.0",
     "expo-image-picker": "~17.0.8",
     "expo-file-system": "~19.0.17",
-    "base64-arraybuffer": "^1.0.2"
+    "base64-arraybuffer": "^1.0.2",
+    "expo-awesome-app-icon": "^2.2.1"
+  },
+  "devDependencies": {
+    "sharp": "^0.33.5"
   }
 }
