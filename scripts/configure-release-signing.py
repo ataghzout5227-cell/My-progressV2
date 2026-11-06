@@ -24,7 +24,8 @@ signing="""
     }
 """
 source=source.replace(anchor,signing+anchor,1)
-block=re.search(r"(release\s*\{)([\s\S]*?)(?=\n\s*\}\s*\n\s*\})",source)
+build_types_start=source.index(anchor)
+block=re.search(r"(release\s*\{)([\s\S]*?)(?=\n\s*\}\s*\n\s*\})",source[build_types_start:])
 if not block:sys.exit('Could not find release buildType; refusing an unsigned build.')
 replacement=block.group(0).replace('signingConfig signingConfigs.debug','signingConfig signingConfigs.release')
 if replacement==block.group(0):sys.exit('Expected Expo debug signing clause not found. Refusing release.')
