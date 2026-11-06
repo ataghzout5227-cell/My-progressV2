@@ -34,7 +34,7 @@ export async function saveBookToCloud(userId,book){
 export async function fetchBooksFromCloud(userId){
   const {data,error}=await cloud.from('ascend_books').select('id,book,updated_at').eq('user_id',userId).limit(2000);
   if(error)throw error;
-  const remote=data.map(r=>({...r.book,id:r.id,updatedAt:r.book.updatedAt||r.updated_at}));
+  const remote=data.map(r=>({...r.book,id:r.id,updatedAt:r.book.updatedAt||r.updated_at,cloudSyncedAt:r.book.updatedAt||r.updated_at}));
   const signed=await Promise.all(remote.map(async book=>{
     if(!book.cloudCoverPath)return book;
     const {data:link,error:linkError}=await cloud.storage.from(BUCKET).createSignedUrl(book.cloudCoverPath,3600);
