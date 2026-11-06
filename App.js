@@ -42,7 +42,7 @@ export default function App(){
  const [pinText,setPinText]=useState(''),[pinAgain,setPinAgain]=useState(''),[opened,setOpened]=useState(false),[journalTitle,setJournalTitle]=useState(''),[journalText,setJournalText]=useState(''),[editId,setEditId]=useState(null);
  const [goalText,setGoalText]=useState(''),[runTarget,setRunTarget]=useState('8');
  const [cloudUser,setCloudUser]=useState(null),[cloudEmail,setCloudEmail]=useState(''),[cloudPassword,setCloudPassword]=useState(''),[cloudBusy,setCloudBusy]=useState(false),[cloudInfo,setCloudInfo]=useState('');
- const [cloudSyncReady,setCloudSyncReady]=useState(false),[cloudDirty,setCloudDirty]=useState(0),[cloudStatus,setCloudStatus]=useState('');
+ const [cloudSyncReady,setCloudSyncReady]=useState(false),[cloudDirty,setCloudDirty]=useState(0),[cloudStatus,setCloudStatus]=useState(''),[cloudRetry,setCloudRetry]=useState(0);
  const cloudLatestRef=useRef({data:startData,appearance:{...DEFAULT_APPEARANCE}});
  const cloudLinkedRef=useRef(null),cloudPendingRef=useRef(false),cloudQueueRef=useRef(Promise.resolve());
  const appearanceInitiallySaved=useRef(false),cloudChangeVersion=useRef(0);
@@ -128,10 +128,15 @@ export default function App(){
      }catch(e){if(alive)setCloudStatus('Offline · local progress remains saved')}
    })();
    return()=>{alive=false};
- },[ready,appearanceReady,cloudUser?.id]);
+ },[ready,appearanceReady,cloudUser?.id,cloudRetry]);
  useEffect(()=>{
    if(!cloudUser?.id){cloudLinkedRef.current=null;setCloudSyncReady(false);setCloudStatus('Sign in to sync with Supabase')}
  },[cloudUser?.id]);
+ useEffect(()=>{
+   if(!cloudUser?.id||cloudStatus!=='Offline · local progress remains saved')return;
+   const retry=setInterval(()=>setCloudRetry(v=>v+1),20000);
+   return()=>clearInterval(retry);
+ },[cloudUser?.id,cloudStatus]);
  useEffect(()=>{
    if(!cloudSyncReady||!cloudUser?.id||!cloudPendingRef.current)return;
    const userId=cloudUser.id;
