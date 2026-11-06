@@ -55,6 +55,7 @@ export default function App(){
      if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
    }
  },[appearance,appearanceReady]);
+ useEffect(()=>{cloudLatestRef.current.data=data},[data]);
  useEffect(()=>{let live=true;cloud.auth.getSession().then(({data,error})=>{if(live){setCloudUser(data?.session?.user||null);if(error)setCloudInfo('Cloud sign-in unavailable: '+error.message)}}).catch(e=>{if(live)setCloudInfo('Cloud sign-in unavailable')});const {data:subscription}=cloud.auth.onAuthStateChange((_event,session)=>{if(live)setCloudUser(session?.user||null)});return()=>{live=false;subscription.subscription.unsubscribe()}},[]);
  const persist=(next)=>{
    cloudLatestRef.current.data=next;
