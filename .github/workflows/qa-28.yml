@@ -22,6 +22,8 @@ jobs:
         run: npm install --no-audit --no-fund
       - name: Check balanced XP regression tests
         run: node --test tests/progression.test.mjs
+      - name: Verify release signing safeguards
+        run: python3 -m unittest discover -s tests -p 'test_signing.py' -v
       - name: Check JavaScript bundle for Android
         env:
           NODE_ENV: production
