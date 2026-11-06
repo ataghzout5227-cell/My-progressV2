@@ -61,7 +61,7 @@ export default function BooksSection({accent='#A3FF29',onBack,cloudUser}){
  useEffect(()=>{booksRef.current=books},[books]);
  useEffect(()=>{let live=true;AsyncStorage.getItem(STORAGE_KEY).then(raw=>{
    if(!live)return;
-   if(raw){const list=JSON.parse(raw);if(!Array.isArray(list))throw Error('Invalid saved books');booksRef.current=list;setBooks(list)}
+   if(raw){const list=JSON.parse(raw);if(!Array.isArray(list))throw Error('Invalid saved books');const normalized=list.map(b=>({...b,updatedAt:b.updatedAt||new Date().toISOString()}));booksRef.current=normalized;setBooks(normalized)}
  }).catch(()=>Alert.alert('Books','Could not load saved books. Your existing data has not been changed.')).finally(()=>{if(live)setLoaded(true)});
  return()=>{live=false};},[]);
  const storeLocally=list=>{
@@ -102,7 +102,7 @@ export default function BooksSection({accent='#A3FF29',onBack,cloudUser}){
        if(!alive)return;
        const merged=mergeBooks(booksRef.current,remote);
        // Rows retrieved from the server are already synced.
-       storeLocally(merged.map(b=>({...b,cloudSyncedAt:b.cloudSyncedAt||(!b.coverUri?b.updatedAt:undefined)})));
+       storeLocally(merged);
        setSyncState('Connected to Supabase');
        await synchronize();
      }catch(e){if(alive)setSyncState('Offline · books saved locally')}
