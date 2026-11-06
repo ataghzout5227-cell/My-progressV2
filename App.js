@@ -51,7 +51,7 @@ export default function App(){
  useEffect(()=>{let active=true;AsyncStorage.getItem('ascend-appearance-v1').then(value=>{if(active&&value){try{setAppearance(normalizeAppearance(JSON.parse(value)))}catch(e){}}}).catch(()=>{}).finally(()=>{if(active)setAppearanceReady(true)});return()=>{active=false}},[]);
  useEffect(()=>{cloudLatestRef.current.appearance=appearance;
    if(appearanceReady){
-     AsyncStorage.setItem('ascend-appearance-v1',JSON.stringify(appearance)).catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
+     AsyncStorage.multiSet([['ascend-appearance-v1',JSON.stringify(appearance)],['ascend-cloud-local-updated',new Date().toISOString()]]) .catch(()=>Alert.alert('Appearance save error','Could not save your customization on this phone.'));
      if(cloudSyncReady){cloudPendingRef.current=true;setCloudDirty(x=>x+1)}
    }
  },[appearance,appearanceReady]);
