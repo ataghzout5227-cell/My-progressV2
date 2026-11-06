@@ -2,12 +2,12 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.7.4",
+    "version": "2.7.5",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 7,
+      "versionCode": 8,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
