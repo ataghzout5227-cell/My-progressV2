@@ -36,7 +36,7 @@ export default function AppIconSettings({accent='#A3FF29'}){
      {OPTIONS.map(item=><TouchableOpacity key={item.key} disabled={!supported||busy} onPress={()=>choose(item.key)}
        accessibilityRole="button" accessibilityLabel={'Choose '+item.label+' app icon'}
        accessibilityState={{selected:selected===item.key,disabled:!supported||busy}}
-       style={{width:'30%',gap:7,alignItems:'center',opacity:!supported?.5:1}}>
+       style={{width:'30%',gap:7,alignItems:'center',opacity:supported?1:0.5}}>
        <Image source={item.source} style={{width:'100%',aspectRatio:1,borderRadius:22,borderWidth:selected===item.key?3:1,borderColor:selected===item.key?accent:'#6B746B'}}/>
        <Text style={{color:selected===item.key?accent:'#DCE8D8',fontSize:11,fontWeight:'800',textAlign:'center'}}>{item.label}</Text>
      </TouchableOpacity>)}
