@@ -4,6 +4,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import {BookOpen,Plus,Minus,Camera,Trash2,CheckCircle,Edit3,ChevronLeft} from 'lucide-react-native';
+import {saveBookToCloud,fetchBooksFromCloud,mergeBooks} from './booksCloud';
 
 // Books are stored separately, so no migration touches running, workouts, or private journal.
 const STORAGE_KEY='ascend-books-v1';
@@ -36,7 +37,7 @@ const getStyles=C=>StyleSheet.create({
  row:{flexDirection:'row',alignItems:'center',gap:10},
  mutedBtn:{borderWidth:1,borderColor:C.teal+'66',borderRadius:12,padding:12,alignItems:'center',justifyContent:'center'},
 });
-export default function BooksSection({accent='#A3FF29',onBack}){
+export default function BooksSection({accent='#A3FF29',onBack,cloudUser}){
  const C=useMemo(()=>({teal:accent,text:'#F6F8F4',muted:'#AAB9AA'}),[accent]);
  const s=useMemo(()=>getStyles(C),[C]);
  const [books,setBooks]=useState([]);
@@ -53,17 +54,66 @@ export default function BooksSection({accent='#A3FF29',onBack}){
  const [filter,setFilter]=useState('All');
  const [pageInputs,setPageInputs]=useState({});
  const queue=useRef(Promise.resolve());
+ const booksRef=useRef([]);
+ const cloudUserRef=useRef(cloudUser);
+ const [syncState,setSyncState]=useState('');
+ useEffect(()=>{cloudUserRef.current=cloudUser},[cloudUser]);
+ useEffect(()=>{booksRef.current=books},[books]);
  useEffect(()=>{let live=true;AsyncStorage.getItem(STORAGE_KEY).then(raw=>{
    if(!live)return;
-   if(raw){const list=JSON.parse(raw);if(!Array.isArray(list))throw Error('Invalid saved books');setBooks(list)}
+   if(raw){const list=JSON.parse(raw);if(!Array.isArray(list))throw Error('Invalid saved books');booksRef.current=list;setBooks(list)}
  }).catch(()=>Alert.alert('Books','Could not load saved books. Your existing data has not been changed.')).finally(()=>{if(live)setLoaded(true)});
  return()=>{live=false};},[]);
- const persist=list=>{
+ const storeLocally=list=>{
+   booksRef.current=list;
    setBooks(list);
    queue.current=queue.current.catch(()=>{}).then(()=>AsyncStorage.setItem(STORAGE_KEY,JSON.stringify(list))).catch(()=>{
      Alert.alert('Books save error','Your book update could not be stored. Please try again.');
    });
  };
+ const synchronize=async()=>{
+   const user=cloudUserRef.current;
+   if(!user)return;
+   const unsynced=booksRef.current.filter(b=>b.updatedAt&&b.cloudSyncedAt!==b.updatedAt);
+   if(!unsynced.length){setSyncState('Saved to Supabase');return}
+   setSyncState('Syncing to Supabase…');
+   for(const item of unsynced){
+     try{
+       const uploaded=await saveBookToCloud(user.id,item);
+       // Never overwrite a newer local edit with an older cloud response.
+       const updated=booksRef.current.map(b=>b.id===item.id&&b.updatedAt===item.updatedAt?
+         {...b,cloudCoverPath:uploaded.cloudCoverPath||b.cloudCoverPath,cloudCoverSource:uploaded.cloudCoverSource||b.cloudCoverSource,cloudSyncedAt:item.updatedAt}:b);
+       storeLocally(updated);
+     }catch(e){setSyncState('Offline · waiting to sync');return}
+   }
+   setSyncState('Saved to Supabase');
+ };
+ const persist=list=>{
+   storeLocally(list);
+   if(cloudUserRef.current){setTimeout(()=>synchronize(),0)}
+ };
+ useEffect(()=>{
+   if(!loaded||!cloudUser)return;
+   let alive=true;
+   setSyncState('Loading from Supabase…');
+   (async()=>{
+     try{
+       const remote=await fetchBooksFromCloud(cloudUser.id);
+       if(!alive)return;
+       const merged=mergeBooks(booksRef.current,remote);
+       // Rows retrieved from the server are already synced.
+       storeLocally(merged.map(b=>({...b,cloudSyncedAt:b.cloudSyncedAt||(!b.coverUri?b.updatedAt:undefined)})));
+       setSyncState('Connected to Supabase');
+       await synchronize();
+     }catch(e){if(alive)setSyncState('Offline · books saved locally')}
+   })();
+   return()=>{alive=false};
+ },[loaded,cloudUser?.id]);
+ useEffect(()=>{
+   if(!loaded||!cloudUser)return;
+   const timer=setInterval(()=>synchronize(),30000);
+   return()=>clearInterval(timer);
+ },[loaded,cloudUser?.id]);
  const reset=()=>{setForm(false);setEditId(null);setTitle('');setAuthor('');setPages('');setPage('0');setCover(null);setStatus('Want to read')};
  const create=()=>{reset();setForm(true)};
  const edit=book=>{setEditId(book.id);setTitle(book.title);setAuthor(book.author||'');setPages(String(book.pages));setPage(String(book.page));setCover(book.coverUri||null);setStatus(book.status);setForm(true)};
@@ -97,7 +147,8 @@ export default function BooksSection({accent='#A3FF29',onBack}){
      title:title.trim(),author:author.trim(),pages:total,page:current,coverUri:cover,
      status:state,addedAt:old?.addedAt||today(),
      finishedAt:state==='Finished'?(old?.finishedAt||today()):null,
-     history:old?.history||[]
+     history:old?.history||[],updatedAt:new Date().toISOString(),cloudSyncedAt:null,
+     cloudCoverPath:old?.cloudCoverPath||null,cloudCoverSource:old?.cloudCoverSource||null
    };
    if(old&&old.page!==current)record.history=[...record.history,{date:today(),page:current,from:old.page}].slice(-500);
    const next=old?books.map(b=>b.id===old.id?record:b):[record,...books];
@@ -107,7 +158,7 @@ export default function BooksSection({accent='#A3FF29',onBack}){
    const current=Number.isInteger(n)?Math.min(book.pages,Math.max(0,n)):book.page;
    if(current===book.page)return;
    const completed=current===book.pages;
-   const next=books.map(b=>b.id===book.id?{...b,page:current,
+   const next=books.map(b=>b.id===book.id?{...b,page:current,updatedAt:new Date().toISOString(),cloudSyncedAt:null,
       status:completed?'Finished':b.status==='Finished'?'Reading':b.status==='Want to read'?'Reading':b.status,
       finishedAt:completed?(b.finishedAt||today()):null,
       history:[...(b.history||[]),{date:today(),page:current,from:b.page}].slice(-500)
@@ -128,9 +179,10 @@ export default function BooksSection({accent='#A3FF29',onBack}){
  };
  const removeBook=book=>Alert.alert('Delete book?','Remove '+book.title+' and its reading history? This cannot be undone.',[
    {text:'Cancel',style:'cancel'},
-   {text:'Delete',style:'destructive',onPress:()=>persist(books.filter(b=>b.id!==book.id))}
+   {text:'Delete',style:'destructive',onPress:()=>persist(books.map(b=>b.id===book.id?{...b,deletedAt:new Date().toISOString(),updatedAt:new Date().toISOString(),cloudSyncedAt:null}:b))}
  ]);
- const visible=books.filter(b=>filter==='All'||b.status===filter);
+ const activeBooks=books.filter(b=>!b.deletedAt);
+ const visible=activeBooks.filter(b=>filter==='All'||b.status===filter);
  if(!loaded)return <View style={{padding:24}}><ActivityIndicator color={accent}/><Text style={s.sub}>Loading your books…</Text></View>;
  return <View style={{gap:17}}>
    <View style={s.head}>
@@ -138,9 +190,9 @@ export default function BooksSection({accent='#A3FF29',onBack}){
      <View style={{flex:1}}><Text style={s.title}>Books</Text><Text style={s.sub}>A record of the pages you've actually read.</Text></View>
    </View>
    <View style={s.row}>
-     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{books.filter(b=>b.status==='Reading').length}</Text><Text style={s.tiny}>READING</Text></View>
-     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{books.filter(b=>b.status==='Finished').length}</Text><Text style={s.tiny}>FINISHED</Text></View>
-     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{books.length}</Text><Text style={s.tiny}>TOTAL</Text></View>
+     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{activeBooks.filter(b=>b.status==='Reading').length}</Text><Text style={s.tiny}>READING</Text></View>
+     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{activeBooks.filter(b=>b.status==='Finished').length}</Text><Text style={s.tiny}>FINISHED</Text></View>
+     <View style={[s.card,{flex:1,padding:12}]}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{activeBooks.length}</Text><Text style={s.tiny}>TOTAL</Text></View>
    </View>
    {!form?<TouchableOpacity onPress={create} style={s.button}><View style={s.row}><Plus color="#101911" size={19}/><Text style={s.buttonText}>Add a book</Text></View></TouchableOpacity>:null}
    {form?<View style={s.card}>
@@ -168,7 +220,7 @@ export default function BooksSection({accent='#A3FF29',onBack}){
    {visible.length===0?<View style={s.card}><Text style={s.sub}>No books here yet. Add one when you're ready to read.</Text></View>:null}
    {visible.map(book=><View key={book.id} style={s.card}>
      <View style={s.row}>
-       {book.coverUri?<Image source={{uri:book.coverUri}} style={s.cover} resizeMode="cover"/>:
+       {(book.coverUri||book.cloudCoverUrl)?<Image source={{uri:book.coverUri||book.cloudCoverUrl}} style={s.cover} resizeMode="cover"/>:
          <View style={s.coverEmpty}><BookOpen color={accent} size={30}/></View>}
        <View style={{flex:1,gap:7}}>
          <Text style={s.cardTitle}>{book.title}</Text>
@@ -198,6 +250,7 @@ export default function BooksSection({accent='#A3FF29',onBack}){
      </View>
      {book.history?.length?<Text style={s.tiny}>Last update: {book.history[book.history.length-1].date} · Page {book.history[book.history.length-1].page}</Text>:null}
    </View>)}
-   <Text style={s.sub}>Books and cover photos are saved locally on your device. No AI, subscription, or internet needed.</Text>
+   <Text style={s.sub}>{cloudUser?'Books are saved on your device and synchronized privately with Supabase.':'Sign in from Settings to sync your books and cover photos to Supabase. Offline reading progress is still saved locally.'}</Text>
+   {syncState?<Text style={[s.tiny,{color:accent}]}>{syncState}</Text>:null}
  </View>;
 }
