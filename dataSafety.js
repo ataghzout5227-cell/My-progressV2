@@ -42,7 +42,9 @@ export async function exportRecoveryBackup(){
 }
 export function validateImport(raw){
   const obj=JSON.parse(raw);
-  if(obj.format!=='ascend-backup'||obj.version!==2)throw new Error('Not an Ascend 2.8 backup.');
+  // Ascend 2.7.1 exports {app:'Ascend', date, data:{...}} including journal, excluding the PIN.
+  if(obj.app==='Ascend'&&obj.data&&typeof obj.data==='object')return {format:'ascend-backup',version:2,progress:obj.data,appearance:null,focus:[]};
+  if(obj.format!=='ascend-backup'||obj.version!==2)throw new Error('Not an Ascend backup from version 2.7.1 or 2.8.');
   if(!obj.progress||typeof obj.progress!=='object'||Array.isArray(obj.progress))throw new Error('Backup does not contain valid progress.');
   if(obj.progress.journal!=null&&!Array.isArray(obj.progress.journal))throw new Error('Journal structure is invalid.');
   return obj;
