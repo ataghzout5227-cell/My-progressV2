@@ -1,21 +1,27 @@
 import React, {useMemo} from 'react';
-import {View, Text, TouchableOpacity, StyleSheet} from 'react-native';
+import {View, Text, TouchableOpacity, StyleSheet, Image, Alert} from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
+import * as FileSystem from 'expo-file-system/legacy';
 import {Check, RotateCcw, Link2, Unlink2, Minus, Plus} from 'lucide-react-native';
 import ThunderLogo from './ThunderLogo';
 
 export const DEFAULT_APPEARANCE={
-  style:'storm',lightningColor:'#A3FF29',intensity:70,logoMatch:true,logoColor:'#A3FF29'
+  style:'storm',lightningColor:'#A3FF29',intensity:70,logoMatch:true,logoColor:'#A3FF29',backgroundUri:null,showLightningOnPhoto:false
 };
 export const COLOR_OPTIONS=[
   {label:'Lime',color:'#A3FF29'},{label:'Blue',color:'#299FFF'},
   {label:'Purple',color:'#A855F7'},{label:'Red',color:'#FF4545'},
   {label:'Gold',color:'#FFD447'},{label:'Cyan',color:'#00E5FF'},
-  {label:'White',color:'#F3F8FF'}
+  {label:'White',color:'#F3F8FF'},{label:'Orange',color:'#FF8A32'},
+  {label:'Pink',color:'#FF63BD'},{label:'Rose',color:'#FB7185'},
+  {label:'Emerald',color:'#34D399'},{label:'Mint',color:'#83F5CA'},
+  {label:'Teal',color:'#2DD4BF'},{label:'Indigo',color:'#818CF8'},
+  {label:'Sky',color:'#7DD3FC'},{label:'Ice',color:'#C8E9FF'},
+  {label:'Amber',color:'#FBBF24'},{label:'Silver',color:'#CCD5E1'}
 ];
 export const LIGHTNING_STYLES=[
   {id:'storm',label:'Storm',description:'Branching, powerful bolts'},
   {id:'strike',label:'Strike',description:'Sharp dramatic bolts'},
-  {id:'plasma',label:'Plasma',description:'Flowing electric currents'},
   {id:'minimal',label:'Minimal',description:'Fine understated streaks'}
 ];
 export function normalizeAppearance(value){
@@ -27,7 +33,9 @@ export function normalizeAppearance(value){
     lightningColor:colors.includes(value.lightningColor)?value.lightningColor:DEFAULT_APPEARANCE.lightningColor,
     intensity:Number.isFinite(value.intensity)?Math.max(0,Math.min(100,Math.round(value.intensity/5)*5)):70,
     logoMatch:value.logoMatch!==false,
-    logoColor:colors.includes(value.logoColor)?value.logoColor:DEFAULT_APPEARANCE.logoColor
+    logoColor:colors.includes(value.logoColor)?value.logoColor:DEFAULT_APPEARANCE.logoColor,
+    backgroundUri:typeof value.backgroundUri==='string'&&value.backgroundUri.startsWith('file://')?value.backgroundUri:null,
+    showLightningOnPhoto:value.showLightningOnPhoto===true
   };
 }
 function Palette({title,selected,onSelect}){
@@ -51,6 +59,25 @@ export default function AppearanceSettings({appearance,onChange}){
   const selected=useMemo(()=>normalizeAppearance(appearance),[appearance]);
   const logoColor=selected.logoMatch?selected.lightningColor:selected.logoColor;
   const set=(patch)=>onChange(normalizeAppearance({...selected,...patch}));
+  const chooseBackground=async()=>{
+    try{
+      const result=await ImagePicker.launchImageLibraryAsync({
+        mediaTypes:['images'],allowsEditing:true,aspect:[9,16],quality:0.8
+      });
+      if(result.canceled||!result.assets?.[0]?.uri)return;
+      const asset=result.assets[0];
+      if(!FileSystem.documentDirectory)throw new Error('Private image storage is unavailable.');
+      const staging=FileSystem.documentDirectory+'ascend-custom-background-new.jpg';
+      await FileSystem.copyAsync({from:asset.uri,to:staging});
+      const info=await FileSystem.getInfoAsync(staging);
+      if(!info.exists||!info.size)throw new Error('The selected photo could not be saved.');
+      if(info.size>12000000){await FileSystem.deleteAsync(staging,{idempotent:true});throw new Error('The photo is too large. Choose a smaller image.')}
+      // Use a unique file name to avoid stale Android image caches.
+      const permanent=FileSystem.documentDirectory+'ascend-background-'+Date.now()+'.jpg';
+      await FileSystem.moveAsync({from:staging,to:permanent});
+      set({backgroundUri:permanent});
+    }catch(error){Alert.alert('Background photo',error?.message||'Could not use that photo.')}
+  };
   return <View style={[styles.panel,{borderColor:selected.lightningColor+'77'}]}>
     <View style={styles.top}>
       <View style={{flex:1}}>
@@ -60,6 +87,29 @@ export default function AppearanceSettings({appearance,onChange}){
       <ThunderLogo color={logoColor} size={58}/>
     </View>
     <View style={styles.separator}/>
+    <Text style={[styles.label,{color:selected.lightningColor}]}>YOUR BACKGROUND</Text>
+    <View style={styles.photoPanel}>
+      {selected.backgroundUri?
+        <Image source={{uri:selected.backgroundUri}} resizeMode="cover" style={styles.photoPreview}/>:
+        <View style={[styles.photoPreview,{justifyContent:'center',alignItems:'center',backgroundColor:'#121B16'}]}>
+          <Text style={{color:selected.lightningColor,fontSize:16,fontWeight:'900'}}>YOUR PHOTO</Text>
+          <Text style={styles.styleSub}>Choose a photo from your phone</Text>
+        </View>}
+      <TouchableOpacity style={[styles.photoAction,{borderColor:selected.lightningColor+'88'}]} onPress={chooseBackground} accessibilityRole="button">
+        <Text style={styles.styleName}>{selected.backgroundUri?'Change background photo':'Choose background photo'}</Text>
+      </TouchableOpacity>
+      {selected.backgroundUri?<><TouchableOpacity style={styles.match} onPress={()=>set({showLightningOnPhoto:!selected.showLightningOnPhoto})}
+        accessibilityRole="switch" accessibilityState={{checked:selected.showLightningOnPhoto}}>
+        <Text style={[styles.styleName,{flex:1}]}>Show lightning over my photo</Text>
+        <View style={[styles.toggle,selected.showLightningOnPhoto&&{backgroundColor:selected.lightningColor}]}>
+          <View style={[styles.toggleKnob,selected.showLightningOnPhoto&&{alignSelf:'flex-end'}]}/>
+        </View>
+      </TouchableOpacity>
+      <TouchableOpacity onPress={()=>set({backgroundUri:null,showLightningOnPhoto:false})} style={styles.photoAction}>
+        <Text style={styles.styleSub}>Remove photo and use electric background</Text>
+      </TouchableOpacity></>:null}
+      <Text style={styles.styleSub}>Your photo stays on this device. A dark overlay keeps text readable.</Text>
+    </View>
     <Text style={[styles.label,{color:selected.lightningColor}]}>LIGHTNING STYLE</Text>
     <View style={styles.stylesGrid}>{LIGHTNING_STYLES.map(item=><TouchableOpacity key={item.id} onPress={()=>set({style:item.id})}
       accessibilityRole="button" accessibilityState={{selected:selected.style===item.id}}
@@ -101,6 +151,7 @@ export default function AppearanceSettings({appearance,onChange}){
 }
 const styles=StyleSheet.create({
   panel:{backgroundColor:'rgba(22,30,21,.96)',borderColor:'#45683B',borderWidth:1,borderRadius:20,padding:17,gap:17},
+  photoPanel:{gap:11},photoPreview:{height:160,width:'100%',borderRadius:14,overflow:'hidden'},photoAction:{borderWidth:1,borderColor:'#445D43',backgroundColor:'#222F23',borderRadius:12,padding:13,alignItems:'center'},
   top:{flexDirection:'row',alignItems:'center',gap:12},title:{color:'#F5FFF0',fontSize:22,fontWeight:'900'},
   sub:{color:'#AEBDA6',fontSize:12,lineHeight:18,marginTop:4},
   separator:{height:1,backgroundColor:'#3A5034'},

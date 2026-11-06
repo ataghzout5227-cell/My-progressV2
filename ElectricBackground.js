@@ -5,7 +5,7 @@ import {normalizeAppearance} from './AppearanceSettings';
 
 // Deterministic vector artwork: distinct branching, sharp, flowing and minimal styles.
 function createPaths(style){
- let seed=style==='storm'?310719:style==='strike'?913:style==='plasma'?457:812;
+ let seed=style==='storm'?310719:style==='strike'?913:812;
  const rand=()=>{seed=(Math.imul(seed,1664525)+1013904223)>>>0;return seed/4294967296};
  const parts=[];
  function bolt(x,y,dx,dy,steps,width,depth,curve=false){
@@ -35,17 +35,14 @@ function createPaths(style){
    bolt(380,-10,-11,18,52,4.4,2);
    bolt(-40,330,13,12,46,4,2);
    bolt(420,350,-13,13,45,4,2);
- }else if(style==='plasma'){
-   for(let i=0;i<9;i++)bolt(-20+i*53,-40+(i%2)*32,(i%2? -1:1)*5,9,95,2.2,0,true);
-   for(let i=0;i<5;i++)bolt(400-i*55,880,(i%2?1:-1)*4,-9,95,1.9,0,true);
  }else{
    bolt(5,10,8,10,75,1.6,0);
    bolt(390,0,-8,10,74,1.4,0);
    bolt(0,830,8,-10,68,1.25,0);
    bolt(390,830,-8,-10,68,1.25,0);
  }
- if(style!=='minimal')for(let i=0;i<(style==='storm'?10:style==='strike'?5:8);i++){
-   bolt(rand()*420-15,rand()*830,(rand()-.5)*8,6+rand()*7,5+Math.floor(rand()*12),.7,0,style==='plasma');
+ if(style!=='minimal')for(let i=0;i<(style==='storm'?10:5);i++){
+   bolt(rand()*420-15,rand()*830,(rand()-.5)*8,6+rand()*7,5+Math.floor(rand()*12),.7,0,false);
  }
  const buckets=new Map();
  parts.forEach(item=>{
@@ -57,7 +54,7 @@ function createPaths(style){
 }
 const ARTWORK={
  storm:createPaths('storm'),strike:createPaths('strike'),
- plasma:createPaths('plasma'),minimal:createPaths('minimal')
+ minimal:createPaths('minimal')
 };
 const layers=[
  {scale:3.6,opacity:.055},
@@ -65,7 +62,7 @@ const layers=[
  {scale:.63,opacity:.49},
  {scale:.22,opacity:.85}
 ];
-function ElectricBackground({tab='Home',settings=false,appearance}){
+function ElectricBackground({tab='Home',settings=false,appearance,photoMode=false}){
  const config=normalizeAppearance(appearance);
  const isMinimal=config.style==='minimal';
  const activityOpacity=settings?.62:
@@ -81,6 +78,7 @@ function ElectricBackground({tab='Home',settings=false,appearance}){
      strokeLinecap="round" strokeLinejoin="round"
      opacity={layer.opacity*(item.width<1?.35:1)}/>
  )),[config.style,config.lightningColor]);
+ if(photoMode&&!config.showLightningOnPhoto)return null;
  return <View pointerEvents="none" style={[StyleSheet.absoluteFillObject,{opacity:Math.min(1,opacity)}]}>
    <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
      <Defs><LinearGradient id="ambient" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -88,7 +86,7 @@ function ElectricBackground({tab='Home',settings=false,appearance}){
        <Stop offset="45%" stopColor="#0C100D"/>
        <Stop offset="100%" stopColor="#151A14"/>
      </LinearGradient></Defs>
-     <Rect width="390" height="844" fill="url(#ambient)"/>
+     {!photoMode?<Rect width="390" height="844" fill="url(#ambient)"/>:null}
      {shapes}
    </Svg>
  </View>;
