@@ -28,6 +28,6 @@ block=re.search(r"(release\s*\{)([\s\S]*?)(?=\n\s*\}\s*\n\s*\})",source)
 if not block:sys.exit('Could not find release buildType; refusing an unsigned build.')
 replacement=block.group(0).replace('signingConfig signingConfigs.debug','signingConfig signingConfigs.release')
 if replacement==block.group(0):sys.exit('Expected Expo debug signing clause not found. Refusing release.')
-source=source[:block.start()]+replacement+source[block.end():]
+source=source[:build_types_start+block.start()]+replacement+source[build_types_start+block.end():]
 file.write_text(source)
 print('Configured Gradle to sign releases with a persistent external keystore.')
