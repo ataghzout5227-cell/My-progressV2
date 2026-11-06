@@ -40,6 +40,27 @@ jobs:
       - name: Generate Android project
         working-directory: ${{ steps.source.outputs.dir }}
         run: npx expo prebuild --platform android --clean --no-install
+      - name: Require persistent signing secrets
+        shell: bash
+        env:
+          ASCEND_KEYSTORE_BASE64: ${{ secrets.ASCEND_KEYSTORE_BASE64 }}
+          ASCEND_KEYSTORE_PASSWORD: ${{ secrets.ASCEND_KEYSTORE_PASSWORD }}
+          ASCEND_KEY_ALIAS: ${{ secrets.ASCEND_KEY_ALIAS }}
+          ASCEND_KEY_PASSWORD: ${{ secrets.ASCEND_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in ASCEND_KEYSTORE_BASE64 ASCEND_KEYSTORE_PASSWORD ASCEND_KEY_ALIAS ASCEND_KEY_PASSWORD; do
+            test -n "${!v}" || { echo "::error::Required signing secret $v is not configured. Refusing release."; exit 1; }
+          done
+          printf '%s' "$ASCEND_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/ascend-release.jks"
+          test -s "$RUNNER_TEMP/ascend-release.jks"
+          echo "ASCEND_KEYSTORE_PATH=$RUNNER_TEMP/ascend-release.jks" >> "$GITHUB_ENV"
+          echo "ASCEND_KEYSTORE_PASSWORD=$ASCEND_KEYSTORE_PASSWORD" >> "$GITHUB_ENV"
+          echo "ASCEND_KEY_ALIAS=$ASCEND_KEY_ALIAS" >> "$GITHUB_ENV"
+          echo "ASCEND_KEY_PASSWORD=$ASCEND_KEY_PASSWORD" >> "$GITHUB_ENV"
+      - name: Configure release signing
+        working-directory: ${{ steps.source.outputs.dir }}
+        run: python3 scripts/configure-release-signing.py
       - name: Build standalone APK with embedded JavaScript
         env:
           NODE_ENV: production
@@ -57,7 +78,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
-          cp "$APK" "Ascend-2.7.1.apk"
+          cp "$APK" "Ascend-2.8.0.apk"
       - name: Publish direct APK on GitHub Releases
         if: github.ref == 'refs/heads/main'
         working-directory: ${{ steps.source.outputs.dir }}
@@ -66,12 +87,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="ascend-2.7.1"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.7.1" --notes "App-wide dynamic accent colors across mission text, stats, buttons, navigation, lightning and Thunder A, with saved appearance preferences. Existing journal and cloud functions retained. Direct APK download."
-          gh release upload "$TAG" "Ascend-2.7.1.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          TAG="ascend-2.8.0"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.8.0" --notes "Balanced XP, Analytics, Focus Mode, unlockable themes and Android home widget. New secure signing identity, explicit legacy backup import, and saved Journal and appearance settings."
+          gh release upload "$TAG" "Ascend-2.8.0.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-2.7.1-APK
+          name: Ascend-2.8.0-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
