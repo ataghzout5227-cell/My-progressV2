@@ -57,7 +57,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
-          cp "$APK" "Ascend-2.7.1.apk"
+          cp "$APK" "Ascend-2.7.2.apk"
       - name: Publish direct APK on GitHub Releases
         if: github.ref == 'refs/heads/main'
         working-directory: ${{ steps.source.outputs.dir }}
@@ -66,12 +66,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="ascend-2.7.1"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.7.1" --notes "App-wide dynamic accent colors across mission text, stats, buttons, navigation, lightning and Thunder A, with saved appearance preferences. Existing journal and cloud functions retained. Direct APK download."
-          gh release upload "$TAG" "Ascend-2.7.1.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          TAG="ascend-2.7.2"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.7.2" --notes "Ascend 2.7.2: personal photo backgrounds saved on-device, optional lightning overlay, 18 theme colors and three lightning styles (Plasma removed). Existing features retained."
+          gh release upload "$TAG" "Ascend-2.7.2.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-2.7.1-APK
+          name: Ascend-2.7.2-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
