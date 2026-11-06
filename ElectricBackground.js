@@ -64,7 +64,6 @@ const layers=[
 ];
 function ElectricBackground({tab='Home',settings=false,appearance,photoMode=false}){
  const config=normalizeAppearance(appearance);
- if(photoMode&&!config.showLightningOnPhoto)return null;
  const isMinimal=config.style==='minimal';
  const activityOpacity=settings?.62:
    tab==='Home'?1:tab==='Achievements'?.92:
@@ -79,6 +78,7 @@ function ElectricBackground({tab='Home',settings=false,appearance,photoMode=fals
      strokeLinecap="round" strokeLinejoin="round"
      opacity={layer.opacity*(item.width<1?.35:1)}/>
  )),[config.style,config.lightningColor]);
+ if(photoMode&&!config.showLightningOnPhoto)return null;
  return <View pointerEvents="none" style={[StyleSheet.absoluteFillObject,{opacity:Math.min(1,opacity)}]}>
    <Svg width="100%" height="100%" viewBox="0 0 390 844" preserveAspectRatio="xMidYMid slice">
      <Defs><LinearGradient id="ambient" x1="0%" y1="0%" x2="100%" y2="100%">
