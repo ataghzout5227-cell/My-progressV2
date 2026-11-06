@@ -3,6 +3,8 @@ import {View,Text,TouchableOpacity,ScrollView,Alert,StyleSheet} from 'react-nati
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {analytics,calculateXP,levelInfo,availableThemes} from './progression';
 import {KEYS} from './dataSafety';
+import {requestWidgetUpdate} from 'react-native-android-widget';
+import {AscendProgressWidget} from './AscendProgressWidget';
 
 const DARK='#172019',SOFT='#A6B4A6',WHITE='#F2F8F0';
 const pad=n=>String(n).padStart(2,'0');
@@ -42,7 +44,10 @@ export default function FeatureHub({section,data,achievementCount=0,appearance,o
    if(!active||!sessionDone)return;
    if(focusSessions.some(s=>s.id===active.id))return setAndStore(null);
    const next=[...focusSessions,{id:active.id,date:today(),durationMinutes:active.minutes,completed:true,createdAt:new Date().toISOString()}];
-   try{await AsyncStorage.setItem(KEYS.focus,JSON.stringify(next));setFocusSessions(next);setAndStore(null);Alert.alert('Focus completed','Session saved. You earned 25 XP!')}
+   try{await AsyncStorage.setItem(KEYS.focus,JSON.stringify(next));setFocusSessions(next);setAndStore(null);
+     const updatedLevel=levelInfo(calculateXP(data,next,achievementCount));
+     requestWidgetUpdate({widgetName:'AscendProgress',renderWidget:()=> <AscendProgressWidget level={updatedLevel.level} xp={updatedLevel.totalXP} goal={Object.values(data.goalChecks||{}).filter(Boolean).length} color={accent}/>}).catch(()=>{});
+     Alert.alert('Focus completed','Session saved. You earned 25 XP!')}
    catch(e){Alert.alert('Unable to save','Please retry. Your timer has not been discarded.')}
  };
  const item=(title,value)=> <View style={styles.stat}><Text style={{color:accent,fontSize:25,fontWeight:'900'}}>{value}</Text><Text style={styles.caption}>{title}</Text></View>;
