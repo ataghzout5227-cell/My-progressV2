@@ -30,14 +30,15 @@ export async function prepareMigration(){
   await AsyncStorage.setItem(KEYS.migration,'complete');
 }
 export async function exportRecoveryBackup(){
-  const snapshot=await AsyncStorage.getItem(KEYS.snapshot);
   const current=await AsyncStorage.getItem(KEYS.legacy);
+  const safeProgress=current===null?{}:JSON.parse(current);
+  // The Journal is exported only on the user's explicit action. Never export the PIN.
+  delete safeProgress.pin;
   return JSON.stringify({
     format:'ascend-backup',version:2,exportedAt:new Date().toISOString(),
-    progress:current===null?null:JSON.parse(current),
+    progress:safeProgress,
     appearance:JSON.parse((await AsyncStorage.getItem(KEYS.appearance))||'null'),
-    focus:JSON.parse((await AsyncStorage.getItem(KEYS.focus))||'[]'),
-    recovery: snapshot?JSON.parse(snapshot):null
+    focus:JSON.parse((await AsyncStorage.getItem(KEYS.focus))||'[]')
   },null,2);
 }
 export function validateImport(raw){
