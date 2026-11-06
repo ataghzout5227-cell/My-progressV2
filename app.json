@@ -2,18 +2,36 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.7.1",
+    "version": "2.8.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 4,
+      "versionCode": 5,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
       }
     },
-    "plugins": [],
+    "plugins": [
+      [
+        "react-native-android-widget",
+        {
+          "widgets": [
+            {
+              "name": "AscendProgress",
+              "label": "Ascend Progress",
+              "description": "Level, XP, streak and goal progress — no private journal data",
+              "minWidth": "240dp",
+              "minHeight": "120dp",
+              "targetCellWidth": 4,
+              "targetCellHeight": 2,
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
+      ]
+    ],
     "icon": "./assets/ascend-icon.png",
     "splash": {
       "image": "./assets/ascend-icon.png",
