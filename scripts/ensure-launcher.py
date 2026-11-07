@@ -2,6 +2,7 @@
 """Validate Expo icon aliases without creating a competing permanent launcher."""
 from pathlib import Path
 from xml.etree import ElementTree as ET
+ET.register_namespace("android", "http://schemas.android.com/apk/res/android")
 path = Path("android/app/src/main/AndroidManifest.xml")
 tree = ET.parse(path)
 root = tree.getroot()
