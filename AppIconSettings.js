@@ -3,13 +3,10 @@ import {Alert,AppState,Image,Platform,Text,TouchableOpacity,View} from 'react-na
 import {getAppIconState,setAppIcon,supportsAlternateIcons} from 'expo-awesome-app-icon';
 
 const OPTIONS=[
- {key:'sunny-sprite',label:'Sunny Sprite',source:require('./assets/mascots/sunny-sprite.png')},
- {key:'mono-peek',label:'Mono Peek',source:require('./assets/mascots/mono-peek.png')},
- {key:'red-cat',label:'Red Cat',source:require('./assets/mascots/red-cat.png')},
- {key:'sleepy-cat',label:'Sleepy Cat',source:require('./assets/mascots/sleepy-cat.png')},
- {key:'night-watcher',label:'Night Watcher',source:require('./assets/mascots/night-watcher.png')},
- {key:'ink-emblem',label:'Ink Emblem',source:require('./assets/mascots/ink-emblem.png')},
- {key:'yin-yang',label:'Yin Yang',source:require('./assets/mascots/yin-yang.png')}
+ {key:'black-bolt',label:'Black Bolt',source:require('./assets/mascots/black-bolt.png')},
+ {key:'white-bolt',label:'White Bolt',source:require('./assets/mascots/white-bolt.png')},
+ {key:'golden-bolt',label:'Golden Bolt',source:require('./assets/mascots/golden-bolt.png')},
+ {key:'ghost-flame',label:'Ghost Flame',source:require('./assets/mascots/ghost-flame.png')}
 ];
 // The in-app Thunder A color is deliberately independent of launcher icon selection.
 export default function AppIconSettings({accent='#A3FF29'}){
@@ -50,11 +47,11 @@ export default function AppIconSettings({accent='#A3FF29'}){
      {OPTIONS.map(item=><TouchableOpacity key={item.key} disabled={!supported||busy} onPress={()=>choose(item.key)}
        accessibilityRole="button" accessibilityLabel={'Choose '+item.label+' app icon'}
        accessibilityState={{selected:selected===item.key,disabled:!supported||busy}}
-       style={{width:68,alignItems:'center',gap:6,opacity:supported?1:0.5}}>
-       <View style={{width:64,height:64,borderRadius:16,borderWidth:selected===item.key?3:1,borderColor:selected===item.key?accent:'#576457',padding:selected===item.key?2:0,overflow:'hidden'}}>
-         <Image source={item.source} resizeMode="contain" style={{width:58,height:58,borderRadius:12}}/>
+       style={{width:'46%',maxWidth:140,alignItems:'center',gap:7,opacity:supported?1:0.5}}>
+       <View style={{width:88,height:88,borderRadius:20,borderWidth:selected===item.key?3:1,borderColor:selected===item.key?accent:'#576457',padding:selected===item.key?2:0,overflow:'hidden',backgroundColor:'#111111'}}>
+         <Image source={item.source} resizeMode="contain" style={{width:'100%',height:'100%',borderRadius:17}}/>
        </View>
-       <Text numberOfLines={2} style={{color:selected===item.key?accent:'#DCE8D8',fontSize:11,fontWeight:'800',textAlign:'center'}}>{item.label}</Text>
+       <Text numberOfLines={2} style={{color:selected===item.key?accent:'#DCE8D8',fontSize:12,fontWeight:'800',textAlign:'center'}}>{item.label}</Text>
        {selected===item.key?<Text style={{color:accent,fontSize:10}}>{pending?'Pending':installed===item.key?'Selected':'Selected'}</Text>:null}
      </TouchableOpacity>)}
    </View>

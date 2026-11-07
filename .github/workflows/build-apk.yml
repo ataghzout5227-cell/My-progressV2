@@ -37,6 +37,11 @@ jobs:
       - name: Install dependencies
         working-directory: ${{ steps.source.outputs.dir }}
         run: npm install --no-audit --no-fund
+      - name: Validate generated premium icons and splash
+        working-directory: ${{ steps.source.outputs.dir }}
+        run: |
+          for name in black-bolt white-bolt golden-bolt ghost-flame; do test -s "assets/mascots/$name.png" || exit 1; done
+          test -s assets/ascend-splash.png
       - name: Generate Android project
         working-directory: ${{ steps.source.outputs.dir }}
         run: npx expo prebuild --platform android --clean --no-install
@@ -57,7 +62,7 @@ jobs:
           "$BUILD_TOOLS/apksigner" verify --verbose "$APK"
           "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
-          cp "$APK" "Ascend-2.8.0.apk"
+          cp "$APK" "Ascend-2.8.1.apk"
       - name: Publish direct APK on GitHub Releases
         if: github.ref == 'refs/heads/main'
         working-directory: ${{ steps.source.outputs.dir }}
@@ -66,12 +71,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="ascend-2.8.0"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.8.0" --notes "Ascend 2.8.0: restores the 2.7.5 Android icon switching and build behavior while retaining the latest seven custom icons and application features."
-          gh release upload "$TAG" "Ascend-2.8.0.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          TAG="ascend-2.8.1"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.8.1" --notes "Ascend 2.8.1: four crisp lightning/flame icons with properly sized previews and an immediate dark lightning splash screen; original stable Android icon-switching and existing app features preserved."
+          gh release upload "$TAG" "Ascend-2.8.1.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-2.8.0-APK
+          name: Ascend-2.8.1-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
