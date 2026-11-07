@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Alert,AppState,Image,Platform,Text,TouchableOpacity,View} from 'react-native';
+import {Alert,AppState,BackHandler,Image,Platform,Text,TouchableOpacity,View} from 'react-native';
 import {getAppIconState,setAppIcon,supportsAlternateIcons} from 'expo-awesome-app-icon';
 
 const OPTIONS=[
@@ -36,11 +36,11 @@ export default function AppIconSettings({accent='#A3FF29'}){
    if(!supported||busy)return;
    setBusy(true);
    try{
-     // Apply natively now instead of waiting for a background transition:
-     // some Samsung launchers do not complete the queued transition reliably.
-     await setAppIcon(name);
+     // Persist the selection first; let the native module change launcher aliases
+     // only after the active Android Activity has finished.
+     await setAppIcon(name, {deferUntilBackground: true});
      refresh();
-     Alert.alert('Icon selected','Return to your home screen to apply the icon. Android may take a moment to refresh the shortcut.');
+     BackHandler.exitApp();
    }catch(error){Alert.alert('App icon',error?.message||'Unable to change your home screen icon.')}
    finally{setBusy(false)}
  };
