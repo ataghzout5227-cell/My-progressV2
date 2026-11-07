@@ -1,5 +1,5 @@
 import React,{useEffect,useState} from 'react';
-import {Alert,AppState,BackHandler,Image,Platform,Text,TouchableOpacity,View} from 'react-native';
+import {Alert,AppState,Image,Platform,Text,TouchableOpacity,View} from 'react-native';
 import {getAppIconState,setAppIcon,supportsAlternateIcons} from 'expo-awesome-app-icon';
 
 const OPTIONS=[
@@ -36,11 +36,10 @@ export default function AppIconSettings({accent='#A3FF29'}){
    if(!supported||busy)return;
    setBusy(true);
    try{
-     // Persist the selection first; let the native module change launcher aliases
-     // only after the active Android Activity has finished.
-     await setAppIcon(name, {deferUntilBackground: true});
+     // Restore the immediate icon switch used in the reliable 2.7.5 release.
+     await setAppIcon(name);
      refresh();
-     BackHandler.exitApp();
+     Alert.alert('Icon updated', 'The app may close while Android refreshes the icon.');
    }catch(error){Alert.alert('App icon',error?.message||'Unable to change your home screen icon.')}
    finally{setBusy(false)}
  };
