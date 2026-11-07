@@ -3,11 +3,13 @@ import {Alert,AppState,Image,Platform,Text,TouchableOpacity,View} from 'react-na
 import {getAppIconState,setAppIcon,supportsAlternateIcons} from 'expo-awesome-app-icon';
 
 const OPTIONS=[
- {key:'cat',label:'Night Cat',source:require('./assets/mascots/cat.png')},
- {key:'ghost',label:'Dream Ghost',source:require('./assets/mascots/ghost.png')},
- {key:'bunny',label:'Shadow Bunny',source:require('./assets/mascots/bunny.png')},
- {key:'doodle',label:'Doodle Cat',source:require('./assets/mascots/doodle.png')},
- {key:'flame',label:'Pink Flame',source:require('./assets/mascots/flame.png')}
+ {key:'sunny-sprite',label:'Sunny Sprite',source:require('./assets/mascots/sunny-sprite.png')},
+ {key:'mono-peek',label:'Mono Peek',source:require('./assets/mascots/mono-peek.png')},
+ {key:'red-cat',label:'Red Cat',source:require('./assets/mascots/red-cat.png')},
+ {key:'sleepy-cat',label:'Sleepy Cat',source:require('./assets/mascots/sleepy-cat.png')},
+ {key:'night-watcher',label:'Night Watcher',source:require('./assets/mascots/night-watcher.png')},
+ {key:'ink-emblem',label:'Ink Emblem',source:require('./assets/mascots/ink-emblem.png')},
+ {key:'yin-yang',label:'Yin Yang',source:require('./assets/mascots/yin-yang.png')}
 ];
 // The in-app Thunder A color is deliberately independent of launcher icon selection.
 export default function AppIconSettings({accent='#A3FF29'}){

@@ -2,12 +2,12 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.7.5",
+    "version": "2.7.6",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 8,
+      "versionCode": 9,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
@@ -24,33 +24,45 @@
         "expo-awesome-app-icon",
         {
           "icons": {
-            "cat": {
+            "sunny-sprite": {
               "android": {
-                "image": "./assets/mascots/cat.png",
+                "image": "./assets/mascots/sunny-sprite.png",
                 "backgroundColor": "#141019"
               }
             },
-            "ghost": {
+            "mono-peek": {
               "android": {
-                "image": "./assets/mascots/ghost.png",
+                "image": "./assets/mascots/mono-peek.png",
                 "backgroundColor": "#141019"
               }
             },
-            "bunny": {
+            "red-cat": {
               "android": {
-                "image": "./assets/mascots/bunny.png",
+                "image": "./assets/mascots/red-cat.png",
                 "backgroundColor": "#141019"
               }
             },
-            "doodle": {
+            "sleepy-cat": {
               "android": {
-                "image": "./assets/mascots/doodle.png",
+                "image": "./assets/mascots/sleepy-cat.png",
                 "backgroundColor": "#141019"
               }
             },
-            "flame": {
+            "night-watcher": {
               "android": {
-                "image": "./assets/mascots/flame.png",
+                "image": "./assets/mascots/night-watcher.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "ink-emblem": {
+              "android": {
+                "image": "./assets/mascots/ink-emblem.png",
+                "backgroundColor": "#141019"
+              }
+            },
+            "yin-yang": {
+              "android": {
+                "image": "./assets/mascots/yin-yang.png",
                 "backgroundColor": "#141019"
               }
             }
