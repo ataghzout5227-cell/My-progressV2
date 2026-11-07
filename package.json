@@ -6,7 +6,7 @@
   "scripts": {
     "start": "expo start",
     "android": "expo run:android",
-    "postinstall": "node scripts/generate-mascots.cjs"
+    "postinstall": "node scripts/generate-premium-icons.cjs"
   },
   "dependencies": {
     "expo": "~54.0.29",
