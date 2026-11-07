@@ -2,12 +2,12 @@
   "expo": {
     "name": "Ascend",
     "slug": "ascend-electric",
-    "version": "2.8.0",
+    "version": "2.8.1",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "android": {
       "package": "com.ascend.electric",
-      "versionCode": 13,
+      "versionCode": 14,
       "adaptiveIcon": {
         "foregroundImage": "./assets/ascend-icon.png",
         "backgroundColor": "#0B110A"
@@ -24,46 +24,28 @@
         "expo-awesome-app-icon",
         {
           "icons": {
-            "sunny-sprite": {
+            "black-bolt": {
               "android": {
-                "image": "./assets/mascots/sunny-sprite.png",
-                "backgroundColor": "#141019"
+                "image": "./assets/mascots/black-bolt.png",
+                "backgroundColor": "#FAFAFA"
               }
             },
-            "mono-peek": {
+            "white-bolt": {
               "android": {
-                "image": "./assets/mascots/mono-peek.png",
-                "backgroundColor": "#141019"
+                "image": "./assets/mascots/white-bolt.png",
+                "backgroundColor": "#111111"
               }
             },
-            "red-cat": {
+            "golden-bolt": {
               "android": {
-                "image": "./assets/mascots/red-cat.png",
-                "backgroundColor": "#141019"
+                "image": "./assets/mascots/golden-bolt.png",
+                "backgroundColor": "#FBFBFB"
               }
             },
-            "sleepy-cat": {
+            "ghost-flame": {
               "android": {
-                "image": "./assets/mascots/sleepy-cat.png",
-                "backgroundColor": "#141019"
-              }
-            },
-            "night-watcher": {
-              "android": {
-                "image": "./assets/mascots/night-watcher.png",
-                "backgroundColor": "#141019"
-              }
-            },
-            "ink-emblem": {
-              "android": {
-                "image": "./assets/mascots/ink-emblem.png",
-                "backgroundColor": "#141019"
-              }
-            },
-            "yin-yang": {
-              "android": {
-                "image": "./assets/mascots/yin-yang.png",
-                "backgroundColor": "#141019"
+                "image": "./assets/mascots/ghost-flame.png",
+                "backgroundColor": "#101010"
               }
             }
           }
@@ -72,8 +54,8 @@
     ],
     "icon": "./assets/ascend-icon.png",
     "splash": {
-      "image": "./assets/ascend-icon.png",
-      "backgroundColor": "#0B110A",
+      "image": "./assets/ascend-splash.png",
+      "backgroundColor": "#101010",
       "resizeMode": "contain"
     }
   }
