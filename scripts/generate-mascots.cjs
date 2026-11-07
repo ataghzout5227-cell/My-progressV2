@@ -13,7 +13,7 @@ async function main(){
   const file=path.join(root,'selected-icons',name+'.jpg');
   if(!fs.existsSync(file))throw new Error('Missing icon source: '+file);
   const metadata=await sharp(file).metadata();
-  if(metadata.width!==96||metadata.height!==96)throw new Error('Invalid source icon size: '+name);
+  if(metadata.width<96||metadata.height<96)throw new Error('Invalid source icon size: '+name);
   const dest=path.join(out,name+'.png');
   await sharp(file).resize(512,512,{fit:'fill',kernel:'lanczos3'})
     .png({compressionLevel:9}).toFile(dest);
