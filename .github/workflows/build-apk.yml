@@ -40,6 +40,9 @@ jobs:
       - name: Generate Android project
         working-directory: ${{ steps.source.outputs.dir }}
         run: npx expo prebuild --platform android --clean --no-install
+      - name: Restore reliable Android launcher activity
+        working-directory: ${{ steps.source.outputs.dir }}
+        run: python3 scripts/ensure-launcher.py
       - name: Build standalone APK with embedded JavaScript
         env:
           NODE_ENV: production
