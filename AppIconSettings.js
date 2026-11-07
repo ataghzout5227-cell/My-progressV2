@@ -40,7 +40,7 @@ export default function AppIconSettings({accent='#A3FF29'}){
      // some Samsung launchers do not complete the queued transition reliably.
      await setAppIcon(name);
      refresh();
-     Alert.alert('Icon updated','Your launcher may briefly close Ascend or take a few seconds to refresh. Check the phone home screen.');
+     Alert.alert('Icon selected','Return to your home screen to apply the icon. Android may take a moment to refresh the shortcut.');
    }catch(error){Alert.alert('App icon',error?.message||'Unable to change your home screen icon.')}
    finally{setBusy(false)}
  };
