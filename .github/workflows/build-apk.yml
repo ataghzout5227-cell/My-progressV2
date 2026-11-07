@@ -61,7 +61,7 @@ jobs:
           "$BUILD_TOOLS/zipalign" -c -v 4 "$APK" | tail -n 2
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -E "^(package:|sdkVersion:|targetSdkVersion:)" 
           "$BUILD_TOOLS/aapt" dump badging "$APK" | grep -q "^launchable-activity:" || (echo "::error::APK has no launchable Android activity" && exit 1)
-          cp "$APK" "Ascend-2.7.7.apk"
+          cp "$APK" "Ascend-2.7.8.apk"
       - name: Publish direct APK on GitHub Releases
         if: github.ref == 'refs/heads/main'
         working-directory: ${{ steps.source.outputs.dir }}
@@ -70,12 +70,12 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          TAG="ascend-2.7.7"
-          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.7.7" --notes "Ascend 2.7.7: seven user-provided launcher icons replace previous mascot designs; Android launcher switching deferred until background; launchable activity verified; appearance and all existing features retained."
-          gh release upload "$TAG" "Ascend-2.7.7.apk" --repo "$GITHUB_REPOSITORY" --clobber
+          TAG="ascend-2.7.8"
+          gh release view "$TAG" >/dev/null 2>&1 || gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --title "Ascend 2.7.8" --notes "Ascend 2.7.8: seven user-provided launcher icons replace previous mascot designs; Android launcher switching deferred until background; launchable activity verified; appearance and all existing features retained."
+          gh release upload "$TAG" "Ascend-2.7.8.apk" --repo "$GITHUB_REPOSITORY" --clobber
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: Ascend-2.7.7-APK
+          name: Ascend-2.7.8-APK
           path: ${{ steps.source.outputs.dir }}/android/app/build/outputs/apk/release/*.apk
           if-no-files-found: error
